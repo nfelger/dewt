@@ -1,5 +1,5 @@
-const agenda = document.querySelector('.agenda');
-const hoursToDraw = Number.parseInt(agenda.style.getPropertyValue('--hours-to-draw'));
+const agendaElement = document.querySelector('.agenda');
+const hoursToDraw = Number.parseInt(agendaElement.style.getPropertyValue('--hours-to-draw'));
 
 function drawCalendarDate(calendarDate) {
   const dateFmtOptions = { month:'short', weekday:'short' };
@@ -17,11 +17,25 @@ function drawCalendarDate(calendarDate) {
 
 function drawTimeHints() {
   const startingPoint = Number.parseInt(
-    agenda.style.getPropertyValue('--day-starts-at-minute'));
+    agendaElement.style.getPropertyValue('--day-starts-at-minute'));
   const endPoint = startingPoint + hoursToDraw * 60;
 
   function drawHours() {
+    firstFullHour = startingPoint + 60 - startingPoint % 60;
 
+    for (let min = firstFullHour; min <= endPoint; min += 60) {
+      const hour = document.createElement('h3');
+      hour.className = 'time-hint';
+      hour.style.setProperty('--start-minute', min);
+      hour.style.setProperty('--end-minute', min + 59);
+      hour.textContent = min / 60;
+
+      const minute = document.createElement('sup');
+      minute.textContent = '00';
+      hour.appendChild(minute);
+
+      agendaElement.appendChild(hour);
+    }
   }
 
   function drawLinesEvery60Min(className, firstLineAfter) {
@@ -29,7 +43,7 @@ function drawTimeHints() {
       const line = document.createElement('div');
       line.className = className;
       line.style.setProperty('--start-minute', min);
-      agenda.appendChild(line);
+      agendaElement.appendChild(line);
     }
   }
 
