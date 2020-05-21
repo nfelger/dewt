@@ -18,24 +18,36 @@ function drawCalendarDate(calendarDate) {
 function drawTimeHints() {
   const startingPoint = Number.parseInt(
     agenda.style.getPropertyValue('--day-starts-at-minute'));
-  const endPoint = startingPoint + hoursToDraw * 60
+  const endPoint = startingPoint + hoursToDraw * 60;
 
   function drawHours() {
 
   }
 
-  function drawMajorLines() {
-    const firstLineAfter = 60 - startingPoint % 60;
+  function drawLinesEvery60Min(className, firstLineAfter) {
     for (let min = startingPoint + firstLineAfter; min <= endPoint; min += 60) {
       const line = document.createElement('div');
-      line.className = 'rule-major';
+      line.className = className;
       line.style.setProperty('--start-minute', min);
       agenda.appendChild(line);
     }
   }
 
-  function drawMinorLines() {
+  function drawMajorLines() {
+    const firstLineAfter = 60 - startingPoint % 60;
+    drawLinesEvery60Min('rule-major', firstLineAfter)
+  }
 
+  function drawMinorLines() {
+    let firstLineAfter;
+
+    if (startingPoint % 60 < 30) {
+      firstLineAfter = 30 - startingPoint % 30;
+    } else {
+      firstLineAfter = 60 - (startingPoint - 30) % 60;
+    }
+
+    drawLinesEvery60Min('rule-minor', firstLineAfter);
   }
 
   function drawNowRule() {
