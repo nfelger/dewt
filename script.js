@@ -22,7 +22,7 @@ function drawTimeHints() {
   function drawHours() {
     firstFullHour = 60 - dayStartsAtMin % 60;
 
-    for (let min = firstFullHour; min <= totalMinutes; min += 60) {
+    for (let min = firstFullHour; min < totalMinutes; min += 60) {
       const hour = document.createElement('h3');
       hour.className = 'time-hint';
       hour.style.setProperty('--start-minute', min);
@@ -38,7 +38,7 @@ function drawTimeHints() {
   }
 
   function drawLinesEvery60Min(className, firstLineAfter) {
-    for (let min = firstLineAfter; min <= totalMinutes; min += 60) {
+    for (let min = firstLineAfter; min < totalMinutes; min += 60) {
       const line = document.createElement('div');
       line.className = className;
       line.style.setProperty('--start-minute', min);
@@ -72,8 +72,8 @@ function drawTimeHints() {
       const now = new Date();
       const nowInMinutes = now.getHours() * 60 + now.getMinutes() - dayStartsAtMin;
 
-      if (nowInMinutes > totalMinutes) {
-        nowRule.style.display = 'none';
+      if (nowInMinutes >= totalMinutes) {
+        nowRule.remove();
         return;
       }
 
