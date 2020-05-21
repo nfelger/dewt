@@ -90,6 +90,21 @@ function drawTimeHints() {
   drawNowRule();
 }
 
+function parseLocationForCalendarDate() {
+  const location = new URL(window.location.href);
+  const dateStr = location.searchParams.get('date');
+
+  if (dateStr === null) {
+    return new Date();
+  } else if (dateStr.match(/\d{4}-\d{2}-\d{2}/)) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  } else {
+    document.querySelector('body').innerHTML = '<h1>Page not found</h1><p>You really shouldn\'t be here…</p>';
+    throw Error(`Malformed date! ${dateStr}`);
+  }
+}
+
 agendaElement.style.setProperty('--total-minutes', totalMinutes);
-drawCalendarDate(new Date());
+drawCalendarDate(parseLocationForCalendarDate());
 drawTimeHints();
