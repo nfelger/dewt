@@ -9,6 +9,10 @@ body {
   font: 1.4rem/1.5rem 'Inter', Helvetica, Arial, sans-serif;
 }
 
+* {
+  box-sizing: border-box;
+}
+
 .theme-color-1 {
   background-color: rgb(255, 153, 200);
 }
@@ -38,12 +42,16 @@ body {
 }
 
 .day {
-  grid-column: 1 / 2;
-  grid-row: 1;
   font-size: 1.2rem;
   font-weight: normal;
-  margin: 0;
-  text-align: center;
+  position: fixed;
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  padding: 0 .25em;
+  z-index: 1;
+  background: white;
+  box-shadow: 0 4px 8px 3px rgba(255, 255, 255, 1), 0 -4px 8px 3px rgba(255, 255, 255, 1);
 }
 
 .day p {
