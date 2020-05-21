@@ -25,8 +25,8 @@ function drawTimeHints() {
   }
 
   function drawMajorLines() {
-    const startOffsetFromFullHour = startingPoint % 60;
-    for (let min = startingPoint + startOffsetFromFullHour; min <= endPoint; min += 60) {
+    const firstLineAfter = 60 - startingPoint % 60;
+    for (let min = startingPoint + firstLineAfter; min <= endPoint; min += 60) {
       const line = document.createElement('div');
       line.className = 'rule-major';
       line.style.setProperty('--start-minute', min);
