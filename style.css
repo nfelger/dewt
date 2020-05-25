@@ -90,7 +90,7 @@ body {
   grid-row-end: calc(var(--end-minute) + 1);
   border-radius: 3px;
   margin: 1px 0 0 1em;
-  padding: 1em 20px;
+  padding: 5px 20px;
   max-width: 15em;
   box-shadow: 0 1px 1px gray;
   opacity: 90%;
@@ -108,6 +108,15 @@ body {
 
 .timebox h4 {
   font-weight: normal;
+  margin-bottom: 0;
+}
+
+.timebox h5 {
+  font-weight: normal;
+  margin-top: 2px;
+  margin-bottom: 0;
+  text-transform: uppercase;
+  color: rgb(48, 48, 48);
 }
 
 .timebox:before,

@@ -1,3 +1,5 @@
+// Calendar layout
+
 const agendaElement = document.querySelector('.agenda');
 const hoursToDraw = 14;
 const totalMinutes = hoursToDraw * 60;
@@ -20,7 +22,7 @@ function drawCalendarDate(calendarDate) {
 function drawTimeHints() {
 
   function drawHours() {
-    firstFullHour = 60 - dayStartsAtMin % 60;
+    const firstFullHour = 60 - dayStartsAtMin % 60;
 
     for (let min = firstFullHour; min < totalMinutes; min += 60) {
       const hour = document.createElement('h3');
@@ -108,3 +110,103 @@ function parseLocationForCalendarDate() {
 agendaElement.style.setProperty('--total-minutes', totalMinutes);
 drawCalendarDate(parseLocationForCalendarDate());
 drawTimeHints();
+
+// Timeboxes
+
+import { openDB } from 'https://unpkg.com/idb@5.0.3?module';
+
+async function setUpDatabase() {
+  const db = await openDB('dewt', 1, {
+    upgrade(db, oldVersion, newVersion, transaction) {
+      const objStore = db.createObjectStore('timeboxes', { keyPath: 'id', autoIncrement: true });
+
+      for (let field of ['project', 'details', 'themeColor', 'startMinute', 'endMinute', 'date']) {
+        objStore.createIndex(field, field, {unique: false});
+      }
+    }
+  });
+
+  return db;
+}
+
+function iso8601date(date) {
+  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+}
+
+async function addTestData(db) {
+  const today = new Date();
+  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  const todayStr = iso8601date(today);
+  const tomorrowStr = iso8601date(tomorrow);
+
+  const testData = [
+    {
+      project: 'writing',
+      details: 'Aufsatz zur Verwandlung von Pangolinen',
+      themeColor: 1,
+      date: todayStr,
+      startMinute: 9*60 + 30,
+      endMinute: 11*60 + 10,
+      id: 1
+    },
+    {
+      project: 'Dewt',
+      details: 'Dewt Namen finden',
+      themeColor: 2,
+      date: todayStr,
+      startMinute: 11*60 + 23,
+      endMinute: 12*60 + 45,
+      id: 2
+    },
+    {
+      project: null,
+      details: 'Email',
+      themeColor: 1,
+      date: todayStr,
+      startMinute: 12*60 + 45,
+      endMinute: 15*60,
+      id: 3
+    },
+    {
+      project: 'I SHOULD',
+      details: 'NOT APPEAR',
+      themeColor: 3,
+      date: tomorrowStr,
+      startMinute: 9*60,
+      endMinute: 15*60,
+      id: 4
+    }
+  ];
+
+  for (let item of testData) {
+    if (await db.get('timeboxes', item.id)){
+      await db.delete('timeboxes', item.id);
+    }
+    await db.put('timeboxes', item);
+  }
+}
+
+async function drawTimeboxes(db) {
+  const timeboxes = await db.getAllFromIndex('timeboxes', 'date', iso8601date(new Date()));
+
+  for (let timebox of timeboxes) {
+    const timeboxElement = document.createElement('article');
+    timeboxElement.classList.add('timebox', `theme-color-${timebox.themeColor}`);
+    timeboxElement.style.setProperty('--start-minute', timebox.startMinute - dayStartsAtMin);
+    timeboxElement.style.setProperty('--end-minute', timebox.endMinute - dayStartsAtMin);
+
+    const details = document.createElement('h4');
+    details.textContent = timebox.details;
+    timeboxElement.appendChild(details);
+
+    const project = document.createElement('h5');
+    project.textContent = timebox.project;
+    timeboxElement.appendChild(project);
+
+    agendaElement.appendChild(timeboxElement);
+  }
+}
+
+const db = setUpDatabase();
+db.then(addTestData);
+db.then(drawTimeboxes);
