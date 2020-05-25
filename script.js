@@ -190,23 +190,67 @@ async function drawTimeboxes(db) {
   const timeboxes = await db.getAllFromIndex('timeboxes', 'date', iso8601date(new Date()));
 
   for (let timebox of timeboxes) {
-    const timeboxElement = document.createElement('article');
-    timeboxElement.classList.add('timebox', `theme-color-${timebox.themeColor}`);
-    timeboxElement.style.setProperty('--start-minute', timebox.startMinute - dayStartsAtMin);
-    timeboxElement.style.setProperty('--end-minute', timebox.endMinute - dayStartsAtMin);
-
-    const details = document.createElement('h4');
-    details.textContent = timebox.details;
-    timeboxElement.appendChild(details);
-
-    const project = document.createElement('h5');
-    project.textContent = timebox.project;
-    timeboxElement.appendChild(project);
-
-    agendaElement.appendChild(timeboxElement);
+    addTimeboxToDocument(timebox);
   }
+}
+
+function addTimeboxToDocument(timebox) {
+  const timeboxElement = document.createElement('article');
+  timeboxElement.classList.add('timebox', `theme-color-${timebox.themeColor}`);
+  timeboxElement.style.setProperty('--start-minute', timebox.startMinute - dayStartsAtMin);
+  timeboxElement.style.setProperty('--end-minute', timebox.endMinute - dayStartsAtMin);
+
+  const details = document.createElement('h4');
+  details.textContent = timebox.details;
+  timeboxElement.appendChild(details);
+
+  const project = document.createElement('h5');
+  project.textContent = timebox.project;
+  timeboxElement.appendChild(project);
+
+  timeboxElement.setAttribute('data-timebox-id', timebox.id);
+
+  // Stop clicks from bubbling to the agenda.
+  timeboxElement.addEventListener('click', e => e.stopPropagation());
+
+  agendaElement.appendChild(timeboxElement);
+}
+
+function addDraftTimeboxToDocument(startMinute) {
+  const timeboxElement = document.createElement('article');
+  timeboxElement.classList.add('timebox', 'timebox-draft');
+  timeboxElement.style.setProperty('--start-minute', startMinute - dayStartsAtMin);
+  timeboxElement.style.setProperty('--end-minute', startMinute + 45 - dayStartsAtMin);
+
+  const details = document.createElement('textarea');
+  details.placeholder = 'Work on something deeply';
+  details.addEventListener('input', e => {
+    // Prevent line breaks.
+    e.target.value = e.target.value.replace(/\n/g, '');
+  });
+  timeboxElement.appendChild(details);
+
+  // Stop clicks from bubbling to the agenda.
+  timeboxElement.addEventListener('click', e => e.stopPropagation());
+
+  agendaElement.appendChild(timeboxElement);
 }
 
 const db = setUpDatabase();
 db.then(addTestData);
 db.then(drawTimeboxes);
+
+
+// Adding timeboxes
+let mouseY;
+agendaElement.addEventListener('mousemove', e => {
+  mouseY = e.clientY;
+});
+
+agendaElement.addEventListener('click', e => {
+  // Use the fact that 1min == 1px.
+  const agendaOffset = agendaElement.getBoundingClientRect().y;
+  const mousePosition = mouseY;
+  const mouseAtMinute = mousePosition - agendaOffset + dayStartsAtMin;
+  addDraftTimeboxToDocument(mouseAtMinute);
+});

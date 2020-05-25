@@ -106,6 +106,19 @@ body {
   box-shadow: 0 0 2px;
 }
 
+.timebox-draft {
+  background-color: rgba(255, 255, 255, 1);
+}
+
+.timebox-draft textarea {
+  padding: 0;
+  background: 0;
+  width: 100%;
+  border: none;
+  text-decoration: underline dotted;
+  z-index: 10;
+}
+
 .timebox h4 {
   font-weight: normal;
   margin-bottom: 0;
