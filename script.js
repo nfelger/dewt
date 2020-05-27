@@ -183,8 +183,14 @@ async function addTestData(db) {
     if (await db.get('timeboxes', item.id)){
       await db.delete('timeboxes', item.id);
     }
-    await db.put('timeboxes', item);
+    await createTimebox(db, item);
   }
+}
+
+async function createTimebox(db, timebox) {
+  const timeboxId = await db.put('timeboxes', timebox);
+  timebox.id = timeboxId;
+  addTimeboxToDocument(timebox);
 }
 
 async function drawTimeboxes(db) {
@@ -217,9 +223,8 @@ function addTimeboxToDocument(timebox) {
   agendaElement.appendChild(timeboxElement);
 }
 
-const db = setUpDatabase();
-db.then(addTestData);
-db.then(drawTimeboxes);
+const dbPromise = setUpDatabase();
+dbPromise.then(addTestData);
 
 // Adding timeboxes
 
@@ -258,8 +263,23 @@ function addDraftTimeboxToDocument(startMinute) {
 }
 
 function draftTimeboxSubmitHandler(e) {
-  e => e.preventDefault();
-  alert(new FormData(e.target).get('details'));
+  e.preventDefault();
+
+  const timeboxElement = e.target.parentElement;
+  let details = new FormData(e.target).get('details');
+
+  dbPromise.then(db => {
+    createTimebox(db, {
+      project: null,
+      details: details,
+      themeColor: 1,
+      date: iso8601date(new Date()),
+      startMinute: Number(timeboxElement.style.getPropertyValue('--start-minute')) + dayStartsAtMin,
+      endMinute: Number(timeboxElement.style.getPropertyValue('--end-minute')) + dayStartsAtMin
+    });
+  });
+
+  timeboxElement.remove();
 }
 
 let mouseY;
