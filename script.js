@@ -237,16 +237,19 @@ function addDraftTimeboxToDocument(startMinute) {
   startMinute = startMinute - dayStartsAtMin;
   const endMinute = startMinute + 45;
 
+  // Timebox outer container.
   const timeboxElement = document.createElement('article');
   timeboxElement.classList.add('timebox', 'timebox-draft');
   timeboxElement.style.setProperty('--start-minute', startMinute);
   timeboxElement.style.setProperty('--end-minute', endMinute);
   agendaElement.appendChild(timeboxElement);
 
+  // Form.
   const form = document.createElement('form');
   form.addEventListener('submit', draftTimeboxSubmitHandler);
   timeboxElement.appendChild(form);
 
+  // Details input.
   const details = document.createElement('textarea');
   details.name = 'details';
   details.placeholder = 'Work on something deeply';
@@ -257,6 +260,7 @@ function addDraftTimeboxToDocument(startMinute) {
   form.appendChild(details);
   details.focus();
 
+  // Submit button.
   const submitBtn = document.createElement('button');
   submitBtn.type = 'submit';
   // Wire hitting 'enter' in the textarea to clicking submit.
@@ -266,6 +270,19 @@ function addDraftTimeboxToDocument(startMinute) {
     }
   });
   form.appendChild(submitBtn);
+
+  // Abort (x) button.
+  const closeBtnDiv = document.createElement('div');
+  closeBtnDiv.className = 'closeBtn';
+  const xSpan = document.createElement('span');
+  xSpan.textContent = 'x';
+  closeBtnDiv.appendChild(xSpan);
+  closeBtnDiv.addEventListener('click', e => {
+    e.stopPropagation();  // Avoid opening a new timebox underneath.
+    timeboxElement.remove();
+    draftTimeboxOpened = false;
+  });
+  timeboxElement.appendChild(closeBtnDiv);
 }
 
 function draftTimeboxSubmitHandler(e) {
