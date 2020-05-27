@@ -228,7 +228,12 @@ dbPromise.then(addTestData);
 
 // Adding timeboxes
 
+let draftTimeboxOpened = false;
+
 function addDraftTimeboxToDocument(startMinute) {
+  if (draftTimeboxOpened) { return; }
+  draftTimeboxOpened = true;
+
   startMinute = startMinute - dayStartsAtMin;
   const endMinute = startMinute + 45;
 
@@ -280,6 +285,7 @@ function draftTimeboxSubmitHandler(e) {
   });
 
   timeboxElement.remove();
+  draftTimeboxOpened = false;
 }
 
 let mouseY;
