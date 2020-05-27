@@ -130,7 +130,8 @@ async function setUpDatabase() {
 }
 
 function iso8601date(date) {
-  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+  const zeroPad = value => value < 10 ? '0' + value : value;
+  return `${date.getFullYear()}-${zeroPad(date.getMonth() + 1)}-${zeroPad(date.getDate())}`;
 }
 
 async function addTestData(db) {
