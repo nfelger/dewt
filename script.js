@@ -232,7 +232,6 @@ dbPromise.then(loadAndDrawTimeboxes);
 let draftTimeboxOpened = false;
 
 function addDraftTimeboxToDocument(startMinute) {
-  if (draftTimeboxOpened) { return; }
   draftTimeboxOpened = true;
 
   startMinute = startMinute - dayStartsAtMin;
@@ -256,6 +255,7 @@ function addDraftTimeboxToDocument(startMinute) {
     e.target.value = e.target.value.replace(/\n/g, '');
   });
   form.appendChild(details);
+  details.focus();
 
   const submitBtn = document.createElement('button');
   submitBtn.type = 'submit';
@@ -306,6 +306,17 @@ agendaElement.addEventListener('click', e => {
   const agendaOffset = agendaElement.getBoundingClientRect().y;
   const mousePosition = mouseY;
   const mouseAtMinute = mousePosition - agendaOffset + dayStartsAtMin;
-  addDraftTimeboxToDocument(mouseAtMinute);
-  document.querySelector('.timebox-draft textarea').focus();
+
+  if (draftTimeboxOpened) {
+    const draftTimeboxElement = document.querySelector('.timebox-draft');
+    const details = document.querySelector('.timebox-draft textarea');
+    if (details.value === '') {
+      draftTimeboxElement.remove();
+      addDraftTimeboxToDocument(mouseAtMinute);
+    } else {
+      // Do nothing.
+    }
+  } else {
+    addDraftTimeboxToDocument(mouseAtMinute);
+  }
 });
