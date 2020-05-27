@@ -119,6 +119,10 @@ body {
   z-index: 10;
 }
 
+.timebox-draft button {
+  display: none;
+}
+
 .timebox h4 {
   font-weight: normal;
   margin-bottom: 0;

@@ -216,32 +216,51 @@ function addTimeboxToDocument(timebox) {
   agendaElement.appendChild(timeboxElement);
 }
 
-function addDraftTimeboxToDocument(startMinute) {
-  const timeboxElement = document.createElement('article');
-  timeboxElement.classList.add('timebox', 'timebox-draft');
-  timeboxElement.style.setProperty('--start-minute', startMinute - dayStartsAtMin);
-  timeboxElement.style.setProperty('--end-minute', startMinute + 45 - dayStartsAtMin);
-
-  const details = document.createElement('textarea');
-  details.placeholder = 'Work on something deeply';
-  details.addEventListener('input', e => {
-    // Prevent line breaks.
-    e.target.value = e.target.value.replace(/\n/g, '');
-  });
-  timeboxElement.appendChild(details);
-
-  // Stop clicks from bubbling to the agenda.
-  timeboxElement.addEventListener('click', e => e.stopPropagation());
-
-  agendaElement.appendChild(timeboxElement);
-}
-
 const db = setUpDatabase();
 db.then(addTestData);
 db.then(drawTimeboxes);
 
-
 // Adding timeboxes
+
+function addDraftTimeboxToDocument(startMinute) {
+  startMinute = startMinute - dayStartsAtMin;
+  const endMinute = startMinute + 45;
+
+  const timeboxElement = document.createElement('article');
+  timeboxElement.classList.add('timebox', 'timebox-draft');
+  timeboxElement.style.setProperty('--start-minute', startMinute);
+  timeboxElement.style.setProperty('--end-minute', endMinute);
+  agendaElement.appendChild(timeboxElement);
+
+  const form = document.createElement('form');
+  form.addEventListener('submit', draftTimeboxSubmitHandler);
+  timeboxElement.appendChild(form);
+
+  const details = document.createElement('textarea');
+  details.name = 'details';
+  details.placeholder = 'Work on something deeply';
+  // Prevent adding line breaks (incl. from copy&paste).
+  details.addEventListener('input', e => {
+    e.target.value = e.target.value.replace(/\n/g, '');
+  });
+  form.appendChild(details);
+
+  const submitBtn = document.createElement('button');
+  submitBtn.type = 'submit';
+  // Wire hitting 'enter' in the textarea to clicking submit.
+  details.addEventListener('keydown', e => {
+    if (e.key == "Enter") {
+      submitBtn.click();
+    }
+  });
+  form.appendChild(submitBtn);
+}
+
+function draftTimeboxSubmitHandler(e) {
+  e => e.preventDefault();
+  alert(new FormData(e.target).get('details'));
+}
+
 let mouseY;
 agendaElement.addEventListener('mousemove', e => {
   mouseY = e.clientY;
@@ -253,4 +272,5 @@ agendaElement.addEventListener('click', e => {
   const mousePosition = mouseY;
   const mouseAtMinute = mousePosition - agendaOffset + dayStartsAtMin;
   addDraftTimeboxToDocument(mouseAtMinute);
+  document.querySelector('.timebox-draft textarea').focus();
 });
