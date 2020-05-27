@@ -272,11 +272,18 @@ function draftTimeboxSubmitHandler(e) {
   e.preventDefault();
 
   const timeboxElement = e.target.parentElement;
+  let project = null;
   let details = new FormData(e.target).get('details');
+
+  const firstColonLocation = details.indexOf(':');
+  if (firstColonLocation !== -1) {
+    project = details.slice(0, firstColonLocation);
+    details = details.slice(firstColonLocation + 1);
+  }
 
   dbPromise.then(db => {
     createTimebox(db, {
-      project: null,
+      project: project,
       details: details,
       themeColor: 1,
       date: iso8601date(new Date()),
