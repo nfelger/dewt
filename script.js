@@ -183,7 +183,7 @@ async function addTestData(db) {
     if (await db.get('timeboxes', item.id)){
       await db.delete('timeboxes', item.id);
     }
-    await createTimebox(db, item);
+    await db.put('timeboxes', item);
   }
 }
 
@@ -193,7 +193,7 @@ async function createTimebox(db, timebox) {
   addTimeboxToDocument(timebox);
 }
 
-async function drawTimeboxes(db) {
+async function loadAndDrawTimeboxes(db) {
   const timeboxes = await db.getAllFromIndex('timeboxes', 'date', iso8601date(new Date()));
 
   for (let timebox of timeboxes) {
@@ -225,6 +225,7 @@ function addTimeboxToDocument(timebox) {
 
 const dbPromise = setUpDatabase();
 dbPromise.then(addTestData);
+dbPromise.then(loadAndDrawTimeboxes);
 
 // Adding timeboxes
 
