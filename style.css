@@ -117,6 +117,7 @@ body {
   border: none;
   text-decoration: underline dotted;
   z-index: 10;
+  resize: none;
 }
 
 .timebox-draft button {
