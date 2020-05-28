@@ -274,7 +274,7 @@ function addDraftTimeboxToDocument(startMinute) {
   submitBtn.type = 'submit';
   // Wire hitting 'enter' in the textarea to clicking submit.
   details.addEventListener('keydown', e => {
-    if (e.key == "Enter") {
+    if (e.key == "Enter" && details.value !== "") {
       form.requestSubmit();
     }
   });
