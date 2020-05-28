@@ -107,9 +107,13 @@ function parseLocationForCalendarDate() {
   }
 }
 
-agendaElement.style.setProperty('--total-minutes', totalMinutes);
-drawCalendarDate(parseLocationForCalendarDate());
-drawTimeHints();
+function drawView() {
+  agendaElement.style.setProperty('--total-minutes', totalMinutes);
+  drawCalendarDate(parseLocationForCalendarDate());
+  drawTimeHints();
+}
+
+drawView();
 
 // Timeboxes
 
@@ -323,27 +327,31 @@ function draftTimeboxSubmitHandler(e) {
   removeDraftTimeboxFromDocument(timeboxElement);
 }
 
-let mouseY;
-agendaElement.addEventListener('mousemove', e => {
-  mouseY = e.clientY;
-});
+function setUpListenersForAddingTimeboxes() {
+  let mouseY;
+  agendaElement.addEventListener('mousemove', e => {
+    mouseY = e.clientY;
+  });
 
-agendaElement.addEventListener('click', e => {
-  // Use the fact that 1min == 1px.
-  const agendaOffset = agendaElement.getBoundingClientRect().y;
-  const mousePosition = mouseY;
-  const mouseAtMinute = mousePosition - agendaOffset + dayStartsAtMin;
+  agendaElement.addEventListener('click', e => {
+    // Use the fact that 1min == 1px.
+    const agendaOffset = agendaElement.getBoundingClientRect().y;
+    const mousePosition = mouseY;
+    const mouseAtMinute = mousePosition - agendaOffset + dayStartsAtMin;
 
-  if (draftTimeboxOpened) {
-    const draftTimeboxElement = document.querySelector('.timebox-draft');
-    const details = document.querySelector('.timebox-draft textarea');
-    if (details.value === '') {
-      removeDraftTimeboxFromDocument(draftTimeboxElement);
-      addDraftTimeboxToDocument(mouseAtMinute);
+    if (draftTimeboxOpened) {
+      const draftTimeboxElement = document.querySelector('.timebox-draft');
+      const details = document.querySelector('.timebox-draft textarea');
+      if (details.value === '') {
+        removeDraftTimeboxFromDocument(draftTimeboxElement);
+        addDraftTimeboxToDocument(mouseAtMinute);
+      } else {
+        // Do nothing.
+      }
     } else {
-      // Do nothing.
+      addDraftTimeboxToDocument(mouseAtMinute);
     }
-  } else {
-    addDraftTimeboxToDocument(mouseAtMinute);
-  }
-});
+  });
+}
+
+setUpListenersForAddingTimeboxes();

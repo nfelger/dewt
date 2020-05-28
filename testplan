@@ -1,12 +1,15 @@
 Load calendar for today
 - "NOT APPEAR" absent
+- now-line shows at the correct minute
 - Click on TB => nothing happens
 - Click in agenda, but outside TB => draft opens,
 details focused
 - click outside draft => box moves, details focused
+- click inside draft => nothing happens
 - type in details, then click outside => nothing happens
 - click (x) button => box closes
 - open draft box, hit [esc] => box closes
+- open draft box, hit [return] => validation error
 - check storage => no new box
 - open draft box, type details, hit [enter] => box persists, storage has new TB
 - reload page => new TB is displayed
