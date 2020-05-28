@@ -191,7 +191,19 @@ async function addTestData(db) {
   }
 }
 
+function validateTimebox(timebox) {
+  const errors = [];
+  return errors;
+}
+
 async function createTimebox(db, timebox) {
+  const validationErrors = validateTimebox(timebox);
+  if (validationErrors.length > 0) {
+    for (let error of validationErrors) {
+      notifyUser(error, notificationLevel.error);
+    }
+    return;
+  }
   const timeboxId = await db.put('timeboxes', timebox);
   timebox.id = timeboxId;
   addTimeboxToDocument(timebox);
@@ -355,3 +367,25 @@ function setUpListenersForAddingTimeboxes() {
 }
 
 setUpListenersForAddingTimeboxes();
+
+// User notifications
+const notificationLevel = {
+  error: 'error',
+  info: 'info',
+  success: 'success'
+}
+const notificationsElement = document.querySelector('.notifications');
+function notifyUser(message, level) {
+  const notification = document.createElement('div');
+  notification.classList.add('notification', level);
+  notificationsElement.appendChild(notification);
+  const messageElement = document.createElement('p');
+  messageElement.textContent = message;
+  notification.appendChild(messageElement);
+  notification.addEventListener('click', () => {
+    notification.classList.add('hide');
+    setTimeout(function() {
+      notification.remove();
+    }, 200);
+  });
+}
