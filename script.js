@@ -193,6 +193,11 @@ async function createTimebox(db, timebox) {
   addTimeboxToDocument(timebox);
 }
 
+function removeDraftTimeboxFromDocument(timeboxElement) {
+  timeboxElement.remove();
+  draftTimeboxOpened = false;
+}
+
 async function loadAndDrawTimeboxes(db) {
   const timeboxes = await db.getAllFromIndex('timeboxes', 'date', iso8601date(new Date()));
 
@@ -279,8 +284,7 @@ function addDraftTimeboxToDocument(startMinute) {
   closeBtnDiv.appendChild(xSpan);
   closeBtnDiv.addEventListener('click', e => {
     e.stopPropagation();  // Avoid opening a new timebox underneath.
-    timeboxElement.remove();
-    draftTimeboxOpened = false;
+    removeDraftTimeboxFromDocument(timeboxElement);
   });
   timeboxElement.appendChild(closeBtnDiv);
 }
@@ -309,8 +313,7 @@ function draftTimeboxSubmitHandler(e) {
     });
   });
 
-  timeboxElement.remove();
-  draftTimeboxOpened = false;
+  removeDraftTimeboxFromDocument(timeboxElement);
 }
 
 let mouseY;
@@ -328,7 +331,7 @@ agendaElement.addEventListener('click', e => {
     const draftTimeboxElement = document.querySelector('.timebox-draft');
     const details = document.querySelector('.timebox-draft textarea');
     if (details.value === '') {
-      draftTimeboxElement.remove();
+      removeDraftTimeboxFromDocument(draftTimeboxElement);
       addDraftTimeboxToDocument(mouseAtMinute);
     } else {
       // Do nothing.

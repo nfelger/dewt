@@ -1,0 +1,11 @@
+Load calendar for today
+- "NOT APPEAR" absent
+- Click on TB => nothing happens
+- Click in agenda, but outside TB => draft opens,
+details focused
+- click outside draft => box moves, details focused
+- type in details, then click outside => nothing happens
+- click (x) button => box closes
+- open draft box, hit [esc] => box closes
+- check storage => no new box
+- open draft box, type details, hit [enter] => box persists, storage has new TB
