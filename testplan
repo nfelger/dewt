@@ -9,3 +9,4 @@ details focused
 - open draft box, hit [esc] => box closes
 - check storage => no new box
 - open draft box, type details, hit [enter] => box persists, storage has new TB
+- reload page => new TB is displayed

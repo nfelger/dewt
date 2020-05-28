@@ -287,6 +287,13 @@ function addDraftTimeboxToDocument(startMinute) {
     removeDraftTimeboxFromDocument(timeboxElement);
   });
   timeboxElement.appendChild(closeBtnDiv);
+
+  // Abort by hitting esc
+  timeboxElement.addEventListener('keydown', e => {
+    if (e.key == "Escape") {
+      removeDraftTimeboxFromDocument(timeboxElement);
+    }
+  });
 }
 
 function draftTimeboxSubmitHandler(e) {
