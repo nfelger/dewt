@@ -137,49 +137,25 @@ body {
   color: rgb(48, 48, 48);
 }
 
-.timebox::before,
-.timebox::after {
-  content: "";
-  border-top: 1px solid rgba(0,0,0,0.1);
-  border-bottom: 1px solid rgba(0,0,0,0.1);;
-  display: block;
-  height: 2px;
-  left: 25%;
-  right: 25%;
-  position: absolute;
-}
-
-.timebox::before {
-  top: 5%;
-}
-
-.timebox::after {
-  bottom: 5%;
-}
-
-.timebox .closeBtn {
-  display: flex;
-  justify-content: center;
-  align-items: center;
+.timebox-draft .closeBtn {
+  content: "×";
   position: absolute;
   top: -5px;
   right: -5px;
   width: 15px;
   height: 15px;
-  border-radius: 50%;
   border: 1px solid #aaa;
+  border-radius: 50%;
   background-color: #eee;
+  font-family: initial;
+  font-size: 11px;
   color: #666;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.timebox .closeBtn span {
-  display: inline-block;
-  font-size: 1.2rem;
-  height: 12px;
-  line-height: calc(1 / 1.2);
-}
-
-.timebox .closeBtn:hover {
+.timebox-draft .closeBtn:hover {
   color: #333;
   border-color: #888;
   background-color: #ccc;
@@ -258,6 +234,7 @@ body {
 
 .notification::after {
   content: "×";
+  font-family: initial;
   font-size: 2rem;
   cursor: pointer;
 }

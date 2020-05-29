@@ -306,16 +306,14 @@ function addDraftTimeboxToDocument(startMinute) {
   form.appendChild(submitBtn);
 
   // Abort (x) button.
-  const closeBtnDiv = document.createElement('div');
-  closeBtnDiv.className = 'closeBtn';
-  const xSpan = document.createElement('span');
-  xSpan.textContent = 'x';
-  closeBtnDiv.appendChild(xSpan);
-  closeBtnDiv.addEventListener('click', e => {
+  const closeBtn = document.createElement('div');
+  closeBtn.className = 'closeBtn';
+  closeBtn.textContent = '×';
+  closeBtn.addEventListener('click', e => {
     e.stopPropagation();  // Avoid opening a new timebox underneath.
     removeDraftTimeboxFromDocument(timeboxElement);
   });
-  timeboxElement.appendChild(closeBtnDiv);
+  timeboxElement.appendChild(closeBtn);
 
   // Abort by hitting esc
   timeboxElement.addEventListener('keydown', e => {
