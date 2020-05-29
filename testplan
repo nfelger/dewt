@@ -9,7 +9,8 @@ details focused
 - type in details, then click outside => nothing happens
 - click (x) button => box closes
 - open draft box, hit [esc] => box closes
-- open draft box, hit [return] => validation error
+- open draft box, hit [return] => nothing happens
 - check storage => no new box
+- open draft box overlapping with existing TB, type details, hit return => validation error
 - open draft box, type details, hit [enter] => box persists, storage has new TB
 - reload page => new TB is displayed

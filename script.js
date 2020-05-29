@@ -191,13 +191,26 @@ async function addTestData(db) {
   }
 }
 
-function validateTimebox(timebox) {
+async function allTimeboxesOnDate(db, date) {
+  return await db.getAllFromIndex('timeboxes', 'date', iso8601date(date));
+}
+
+async function validateTimebox(db, timebox) {
   const errors = [];
+  const allTimeboxes = await allTimeboxesOnDate(db, new Date());
+  for (let tb of allTimeboxes) {
+    if (
+      (timebox.startMinute >= tb.startMinute && timebox.startMinute < tb.endMinute) ||
+      (timebox.endMinute >= tb.startMinute && timebox.endMinute < tb.endMinute)
+    ) {
+      errors.push('Timeboxes may not overlap. Please adjust the times.');
+    }
+  }
   return errors;
 }
 
 async function createTimebox(db, timebox) {
-  const validationErrors = validateTimebox(timebox);
+  const validationErrors = await validateTimebox(db, timebox);
   if (validationErrors.length > 0) {
     for (let error of validationErrors) {
       notifyUser(error, notificationLevel.error);
@@ -215,7 +228,7 @@ function removeDraftTimeboxFromDocument(timeboxElement) {
 }
 
 async function loadAndDrawTimeboxes(db) {
-  const timeboxes = await db.getAllFromIndex('timeboxes', 'date', iso8601date(new Date()));
+  const timeboxes = await allTimeboxesOnDate(db, new Date());
 
   for (let timebox of timeboxes) {
     addTimeboxToDocument(timebox);
