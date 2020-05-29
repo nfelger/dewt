@@ -209,6 +209,10 @@ async function validateTimebox(db, timebox) {
   return errors;
 }
 
+async function loadTimebox(db, id) {
+  return await db.get('timeboxes', Number(id));
+}
+
 async function createTimebox(db, timebox) {
   const validationErrors = await validateTimebox(db, timebox);
   if (validationErrors.length > 0) {
@@ -235,6 +239,10 @@ async function loadAndDrawTimeboxes(db) {
   }
 }
 
+const dbPromise = setUpDatabase();
+dbPromise.then(addTestData);
+dbPromise.then(loadAndDrawTimeboxes);
+
 function addTimeboxToDocument(timebox) {
   const timeboxElement = document.createElement('article');
   timeboxElement.classList.add('timebox', `theme-color-${timebox.themeColor}`);
@@ -249,17 +257,70 @@ function addTimeboxToDocument(timebox) {
   project.textContent = timebox.project;
   timeboxElement.appendChild(project);
 
-  timeboxElement.setAttribute('data-timebox-id', timebox.id);
+  timeboxElement.dataset.timeboxId = timebox.id;
 
-  // Stop clicks from bubbling to the agenda.
-  timeboxElement.addEventListener('click', e => e.stopPropagation());
+  timeboxElement.addEventListener('click', timeboxClickHandler);
 
   agendaElement.appendChild(timeboxElement);
 }
 
-const dbPromise = setUpDatabase();
-dbPromise.then(addTestData);
-dbPromise.then(loadAndDrawTimeboxes);
+function timeboxClickHandler(e) {
+  // Stop clicks from bubbling to the agenda.
+  e.stopPropagation();
+
+  const timeboxElement = e.currentTarget;
+  const timeboxId = timeboxElement.dataset.timeboxId;
+  dbPromise.then(db => loadTimebox(db, timeboxId)).then(timebox => {
+    const popup = document.createElement('div');
+    popup.className = 'timebox-edit';
+    const form = document.createElement('form');
+    form.insertAdjacentHTML('beforeend', `
+      <fieldset>
+        <ul>
+          <li class="project">
+            <label for="project">Project</label>
+            <input type="text" name="project" value="${timebox.project || ""}">
+          </li>
+          <li class="details">
+            <label for="details">Details</label>
+            <input type="text" name="details" value="${timebox.details}">
+          </li>
+        </ul>
+      </fieldset>
+      <fieldset>
+        <ul>
+          <li class="start-minute">
+            <label for="start-minute">Start</label>
+            <input type="text" name="start-minute" value="${timebox.startMinute}">
+          </li>
+          <li class="end-minute">
+            <label for="end-minute">End</label>
+            <input type="text" name="end-minute" value="${timebox.endMinute}">
+          </li>
+          <li class="date">
+            <label for="date">Date</label>
+            <input type="text" name="date" value="${timebox.date}">
+          </li>
+        </ul>
+      </fieldset>
+      <fieldset>
+        <ul>
+          <li class="theme-color">
+            <label for="theme-color">Color</label>
+            <input type="text" name="theme-color" value="${timebox.themeColor}">
+          </li>
+        </ul>
+      </fieldset>
+      <fieldset>
+        <ul>
+          <li><a href="#">Cancel</a></li>
+          <li><button type="submit">Save</button></li>
+        </ul>
+      </fieldset>`);
+    popup.appendChild(form);
+    timeboxElement.appendChild(popup);
+  });
+}
 
 // Adding timeboxes
 
