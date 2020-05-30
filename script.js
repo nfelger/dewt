@@ -388,7 +388,7 @@ function openTimeboxEditModal(e) {
           </li>
           <li class="details">
             <label for="details">Details</label>
-            <input type="text" name="details" value="${timebox.details}">
+            <input type="text" name="details" required value="${timebox.details}">
           </li>
         </ul>
       </fieldset>
@@ -396,15 +396,15 @@ function openTimeboxEditModal(e) {
         <ul>
           <li class="start-minute">
             <label for="start-minute">Start</label>
-            <input type="text" name="start-minute" value="${minTo24hrFmt(timebox.startMinute)}">
+            <input type="text" name="start-minute" required value="${minTo24hrFmt(timebox.startMinute)}">
           </li>
           <li class="end-minute">
             <label for="end-minute">End</label>
-            <input type="text" name="end-minute" value="${minTo24hrFmt(timebox.endMinute)}">
+            <input type="text" name="end-minute" required value="${minTo24hrFmt(timebox.endMinute)}">
           </li>
           <li class="date">
             <label for="date">Date</label>
-            <input type="text" name="date" value="${timebox.date}">
+            <input type="text" name="date" required value="${timebox.date}">
           </li>
         </ul>
       </fieldset>
@@ -412,7 +412,7 @@ function openTimeboxEditModal(e) {
         <ul>
           <li class="theme-color">
             <label for="theme-color">Color</label>
-            <input type="text" name="theme-color" value="${timebox.themeColor}">
+            <input type="text" name="theme-color" required value="${timebox.themeColor}">
           </li>
         </ul>
       </fieldset>
@@ -462,8 +462,13 @@ function submitDraftTimebox(e) {
 function submitEditTimebox(e) {
   e.preventDefault();
 
-  const formControls = modalBox.querySelectorAll('input');
-  const dirtyControls = Array.from(formControls).filter(c => c.value !== c.defaultValue);
+  const form = modalBox.querySelector('form');
+  if (!form.reportValidity()) {
+    return;
+  }
+
+  const formControls = Array.from(modalBox.querySelectorAll('input'));
+  const dirtyControls = formControls.filter(c => c.value !== c.defaultValue);
 
   let changedValues = {};
   for (let control of dirtyControls) {
