@@ -396,11 +396,11 @@ function openTimeboxEditModal(e) {
         <ul>
           <li class="start-minute">
             <label for="start-minute">Start</label>
-            <input type="text" name="start-minute" required value="${minTo24hrFmt(timebox.startMinute)}">
+            <input type="text" name="start-minute" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minTo24hrFmt(timebox.startMinute)}">
           </li>
           <li class="end-minute">
             <label for="end-minute">End</label>
-            <input type="text" name="end-minute" required value="${minTo24hrFmt(timebox.endMinute)}">
+            <input type="text" name="end-minute" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minTo24hrFmt(timebox.endMinute)}">
           </li>
           <li class="date">
             <label for="date">Date</label>
