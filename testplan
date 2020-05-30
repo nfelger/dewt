@@ -1,16 +1,28 @@
 Load calendar for today
 - "NOT APPEAR" absent
 - now-line shows at the correct minute
-- Click on TB => nothing happens
 - Click in agenda, but outside TB => draft opens,
 details focused
 - click outside draft => box moves, details focused
 - click inside draft => nothing happens
-- type in details, then click outside => nothing happens
+- type in details, then click outside => nothing happens, but visual feedback
 - click (x) button => box closes
 - open draft box, hit [esc] => box closes
 - open draft box, hit [return] => nothing happens
-- check storage => no new box
 - open draft box overlapping with existing TB, type details, hit return => validation error
 - open draft box, type details, hit [enter] => box persists, storage has new TB
 - reload page => new TB is displayed
+- open draft box, click TB => edit modal opens, draft box closes
+- click outside the modal => modal closes
+- click TB, make a change, click outside => nothing happens
+- click TB, make a change, click another TB => nothing happens, but visual feedback on the open one
+- click TB, make a change, click cancel => edit modal closes
+- click same TB again => values reset to what's saved, not what I changed
+- click TB, make a change, click save => TB should reflect changes, also across reloads
+- click TB, check validations:
+  - blank project ok
+  - all others required
+  - start/end time must be 23:59 format
+  - start must be before end
+  - date must be in correct format yyyy-mm-dd
+  - theme-color must be in [1,7]

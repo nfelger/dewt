@@ -326,3 +326,12 @@ body {
 .notification.hide {
   opacity: 0
 }
+
+.box-flash {
+  animation: .4s ease-out 2 flash;
+}
+
+@keyframes flash {
+  from, to { box-shadow: 0px 0px 0px 1px red; }
+  50% { box-shadow: 0px 0px 0px 3px red; }
+}
