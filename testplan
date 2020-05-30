@@ -19,6 +19,9 @@ details focused
 - click TB, make a change, click cancel => edit modal closes
 - click same TB again => values reset to what's saved, not what I changed
 - click TB, make a change, click save => TB should reflect changes, also across reloads
+  - change date => should disappear from view
+  - change project, details, color => should change directly
+  - change start / end time => should resize box
 - click TB, check validations:
   - blank project ok
   - all others required

@@ -21,6 +21,10 @@ function iso8601date(date) {
   return `${date.getFullYear()}-${zeroPad(date.getMonth() + 1)}-${zeroPad(date.getDate())}`;
 }
 
+function kebabToCamel(name) {
+  return name.replace(/-(\w|$)/g, (_, next) => next.toUpperCase())
+}
+
 // Calendar layout
 
 const agendaElement = document.querySelector('.agenda');
@@ -230,6 +234,15 @@ async function createTimebox(db, timebox) {
   drawTimebox(timebox);
 }
 
+async function updateTimebox(db, timeboxId, attributes) {
+  const timebox = await loadTimebox(db, timeboxId);
+  for (let [name, value] of Object.entries(attributes)) {
+    timebox[name] = value;
+  }
+  await db.put('timeboxes', timebox);
+  drawTimebox(timebox);
+}
+
 async function validateTimebox(db, timebox) {
   const errors = [];
   const allTimeboxes = await allTimeboxesOnDate(db, new Date());
@@ -261,6 +274,15 @@ async function drawAllTimeboxes(db) {
 dbPromise.then(drawAllTimeboxes);
 
 function drawTimebox(timebox) {
+  const existingTimebox = document.querySelector(`article[data-timebox-id="${timebox.id}"]`);
+  if (existingTimebox) {
+    existingTimebox.remove();
+  }
+
+  if (timebox.date !== iso8601date(new Date())) {
+    return;
+  }
+
   const timeboxElement = document.createElement('article');
   timeboxElement.classList.add('timebox', `theme-color-${timebox.themeColor}`);
   timeboxElement.style.setProperty('--start-minute', timebox.startMinute - dayStartsAtMin);
@@ -351,6 +373,7 @@ function openTimeboxEditModal(e) {
   dbPromise.then(db => loadTimebox(db, timeboxId)).then(timebox => {
     modalBox = document.createElement('div');
     modalBox.className = 'timebox-edit';
+    modalBox.dataset.timeboxId = timeboxId;
     const form = document.createElement('form');
     form.insertAdjacentHTML('beforeend', `
       <fieldset>
@@ -398,8 +421,9 @@ function openTimeboxEditModal(e) {
     modalBox.appendChild(form);
     form.querySelector('a').addEventListener('click', e => {
       e.preventDefault();
-      removeModalBox()
+      removeModalBox();
     });
+    form.querySelector('button').addEventListener('click', submitEditTimebox);
     modalBox.addEventListener('click', e => e.stopPropagation());
     timeboxElement.appendChild(modalBox);
   });
@@ -429,6 +453,31 @@ function submitDraftTimebox(e) {
     .then(removeModalBox)
     .catch(flashModalBox);
   });
+}
+
+function submitEditTimebox(e) {
+  e.preventDefault();
+
+  const formControls = modalBox.querySelectorAll('input');
+  const dirtyControls = Array.from(formControls).filter(c => c.value !== c.defaultValue);
+
+  let changedValues = {};
+  for (let control of dirtyControls) {
+    let value = control.value;
+    if (['start-minute', 'end-minute'].includes(control.name)) {
+      const [hours, minutes] = value.split(':').map(Number);
+      value = hours * 60 + minutes;
+    }
+    changedValues[kebabToCamel(control.name)] = value;
+  }
+
+  const timeboxId = modalBox.dataset.timeboxId;
+  dbPromise.then(db => {
+    updateTimebox(db, timeboxId, changedValues);
+  })
+  .then(removeModalBox)
+  .catch(flashModalBox);
+
 }
 
 function setUpAgendaListeners() {
