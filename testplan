@@ -22,10 +22,17 @@ details focused
   - change date => should disappear from view
   - change project, details, color => should change directly
   - change start / end time => should resize box
-- click TB, check validations:
-  - blank project ok
-  - all others required
-  - start/end time must be 23:59 format
-  - start must be before end
-  - date must be in correct format yyyy-mm-dd
-  - theme-color must be in [1,7]
+  - change start / end time to overlap with another event => validation error
+  - blank project => should be fine
+  - blank all other fields => validation error
+  - start/end time 1200 => validation error
+  - start/end time 24:00 => validation error
+  - start/end time 1:10 => ok
+  - start/end time 01:10 => ok
+  - start/end time 10:1 => validation error
+  - start time 10:00, end time 9:00 => validation error
+  - date 20/5/2020 => ok
+  - date 35/6/2020 => ok (b/c javascript)
+  - date 124/1/2020 => validation error
+  - theme color 0 or 8 => validation error
+

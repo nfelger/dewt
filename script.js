@@ -222,13 +222,7 @@ async function loadTimebox(db, id) {
 }
 
 async function createTimebox(db, timebox) {
-  const validationErrors = await validateTimebox(db, timebox);
-  if (validationErrors.length > 0) {
-    for (let error of validationErrors) {
-      notifyUser(error, notificationLevel.error);
-    }
-    throw new Error('Timebox validation failed.');
-  }
+  await validateTimebox(db, timebox);
   const timeboxId = await db.put('timeboxes', timebox);
   timebox.id = timeboxId;
   drawTimebox(timebox);
@@ -239,6 +233,7 @@ async function updateTimebox(db, timeboxId, attributes) {
   for (let [name, value] of Object.entries(attributes)) {
     timebox[name] = value;
   }
+  await validateTimebox(db, timebox);
   await db.put('timeboxes', timebox);
   drawTimebox(timebox);
 }
@@ -247,6 +242,7 @@ async function validateTimebox(db, timebox) {
   const errors = [];
   const allTimeboxes = await allTimeboxesOnDate(db, new Date());
   for (let tb of allTimeboxes) {
+    if (tb.id === timebox.id) { continue; }
     if (
       (timebox.startMinute >= tb.startMinute && timebox.startMinute < tb.endMinute) ||
       (timebox.endMinute >= tb.startMinute && timebox.endMinute < tb.endMinute)
@@ -254,7 +250,15 @@ async function validateTimebox(db, timebox) {
       errors.push('Timeboxes may not overlap. Please adjust the times.');
     }
   }
-  return errors;
+
+  if (errors.length > 0) {
+    for (let error of errors) {
+      notifyUser(error, notificationLevel.error);
+    }
+    throw new Error('Timebox validation failed.');
+  }
+
+  return errors === [];
 }
 
 const dbPromise = setUpDatabase();
@@ -473,11 +477,10 @@ function submitEditTimebox(e) {
 
   const timeboxId = modalBox.dataset.timeboxId;
   dbPromise.then(db => {
-    updateTimebox(db, timeboxId, changedValues);
+    updateTimebox(db, timeboxId, changedValues)
+    .then(removeModalBox)
+    .catch(flashModalBox);;
   })
-  .then(removeModalBox)
-  .catch(flashModalBox);
-
 }
 
 function setUpAgendaListeners() {
