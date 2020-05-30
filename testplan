@@ -14,8 +14,8 @@ details focused
 - reload page => new TB is displayed
 - open draft box, click TB => edit modal opens, draft box closes
 - click outside the modal => modal closes
-- click TB, make a change, click outside => nothing happens
-- click TB, make a change, click another TB => nothing happens, but visual feedback on the open one
+- click TB, make a change, click outside => nothing happens, but visual feedback
+- click TB, make a change, click another TB => nothing happens, but visual feedback
 - click TB, make a change, click cancel => edit modal closes
 - click same TB again => values reset to what's saved, not what I changed
 - click TB, make a change, click save => TB should reflect changes, also across reloads

@@ -320,6 +320,10 @@ function openTimeboxEditModal(e) {
         </ul>
       </fieldset>`);
     modalBox.appendChild(form);
+    form.querySelector('a').addEventListener('click', e => {
+      e.preventDefault();
+      removeModalBoxFromDocument()
+    });
     modalBox.addEventListener('click', e => e.stopPropagation());
     timeboxElement.appendChild(modalBox);
   });
