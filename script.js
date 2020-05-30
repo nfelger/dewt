@@ -17,6 +17,10 @@ function minTo24hrFmt(minutes) {
   return parts.map(zeroPad).join(':');
 }
 
+function iso8601date(date) {
+  return `${date.getFullYear()}-${zeroPad(date.getMonth() + 1)}-${zeroPad(date.getDate())}`;
+}
+
 // Calendar layout
 
 const agendaElement = document.querySelector('.agenda');
@@ -134,7 +138,7 @@ function drawView() {
 
 drawView();
 
-// Timeboxes
+// Database access
 
 import { openDB } from 'https://unpkg.com/idb@5.0.3?module';
 
@@ -150,10 +154,6 @@ async function setUpDatabase() {
   });
 
   return db;
-}
-
-function iso8601date(date) {
-  return `${date.getFullYear()}-${zeroPad(date.getMonth() + 1)}-${zeroPad(date.getDate())}`;
 }
 
 async function addTestData(db) {
@@ -213,20 +213,6 @@ async function allTimeboxesOnDate(db, date) {
   return await db.getAllFromIndex('timeboxes', 'date', iso8601date(date));
 }
 
-async function validateTimebox(db, timebox) {
-  const errors = [];
-  const allTimeboxes = await allTimeboxesOnDate(db, new Date());
-  for (let tb of allTimeboxes) {
-    if (
-      (timebox.startMinute >= tb.startMinute && timebox.startMinute < tb.endMinute) ||
-      (timebox.endMinute >= tb.startMinute && timebox.endMinute < tb.endMinute)
-    ) {
-      errors.push('Timeboxes may not overlap. Please adjust the times.');
-    }
-  }
-  return errors;
-}
-
 async function loadTimebox(db, id) {
   return await db.get('timeboxes', Number(id));
 }
@@ -241,27 +227,40 @@ async function createTimebox(db, timebox) {
   }
   const timeboxId = await db.put('timeboxes', timebox);
   timebox.id = timeboxId;
-  addTimeboxToDocument(timebox);
+  drawTimebox(timebox);
 }
 
-function removeModalBoxFromDocument() {
-  modalBox.remove();
-  modalBox = null;
-}
-
-async function loadAndDrawTimeboxes(db) {
-  const timeboxes = await allTimeboxesOnDate(db, new Date());
-
-  for (let timebox of timeboxes) {
-    addTimeboxToDocument(timebox);
+async function validateTimebox(db, timebox) {
+  const errors = [];
+  const allTimeboxes = await allTimeboxesOnDate(db, new Date());
+  for (let tb of allTimeboxes) {
+    if (
+      (timebox.startMinute >= tb.startMinute && timebox.startMinute < tb.endMinute) ||
+      (timebox.endMinute >= tb.startMinute && timebox.endMinute < tb.endMinute)
+    ) {
+      errors.push('Timeboxes may not overlap. Please adjust the times.');
+    }
   }
+  return errors;
 }
 
 const dbPromise = setUpDatabase();
 dbPromise.then(addTestData);
-dbPromise.then(loadAndDrawTimeboxes);
 
-function addTimeboxToDocument(timebox) {
+// Timebox UI
+
+let modalBox;
+
+async function drawAllTimeboxes(db) {
+  const timeboxes = await allTimeboxesOnDate(db, new Date());
+
+  for (let timebox of timeboxes) {
+    drawTimebox(timebox);
+  }
+}
+dbPromise.then(drawAllTimeboxes);
+
+function drawTimebox(timebox) {
   const timeboxElement = document.createElement('article');
   timeboxElement.classList.add('timebox', `theme-color-${timebox.themeColor}`);
   timeboxElement.style.setProperty('--start-minute', timebox.startMinute - dayStartsAtMin);
@@ -280,6 +279,65 @@ function addTimeboxToDocument(timebox) {
   timeboxElement.addEventListener('click', openTimeboxEditModal);
 
   agendaElement.appendChild(timeboxElement);
+}
+
+function openDraftTimeboxModal(startMinute) {
+  startMinute = startMinute - dayStartsAtMin;
+  const endMinute = startMinute + 45;
+
+  // Timebox outer container.
+  modalBox = document.createElement('article');
+  modalBox.classList.add('timebox', 'timebox-draft');
+  modalBox.style.setProperty('--start-minute', startMinute);
+  modalBox.style.setProperty('--end-minute', endMinute);
+  agendaElement.appendChild(modalBox);
+
+  // Form.
+  const form = document.createElement('form');
+  form.addEventListener('submit', submitDraftTimebox);
+  modalBox.appendChild(form);
+
+  // Details input.
+  const details = document.createElement('textarea');
+  details.name = 'details';
+  details.placeholder = 'Work on something deeply';
+  // Prevent adding line breaks (incl. from copy&paste).
+  details.addEventListener('input', e => {
+    e.target.value = e.target.value.replace(/\n/g, '');
+  });
+  form.appendChild(details);
+  details.focus();
+
+  // Submit button.
+  const submitBtn = document.createElement('button');
+  submitBtn.type = 'submit';
+  // Wire hitting 'enter' in the textarea to clicking submit.
+  details.addEventListener('keydown', e => {
+    if (e.key == "Enter" && details.value !== "") {
+      form.requestSubmit();
+    }
+  });
+  form.appendChild(submitBtn);
+
+  // Abort (x) button.
+  const closeBtn = document.createElement('div');
+  closeBtn.className = 'closeBtn';
+  closeBtn.textContent = '×';
+  closeBtn.addEventListener('click', e => {
+    e.stopPropagation();  // Avoid opening a new timebox underneath.
+    removeModalBox();
+  });
+  modalBox.appendChild(closeBtn);
+
+  // Abort by hitting esc
+  modalBox.addEventListener('keydown', e => {
+    if (e.key == "Escape") {
+      removeModalBox();
+    }
+  });
+
+  // Stop clicks into the box from moving the box to a new time.
+  modalBox.addEventListener('click', e => e.stopPropagation());
 }
 
 function openTimeboxEditModal(e) {
@@ -340,77 +398,14 @@ function openTimeboxEditModal(e) {
     modalBox.appendChild(form);
     form.querySelector('a').addEventListener('click', e => {
       e.preventDefault();
-      removeModalBoxFromDocument()
+      removeModalBox()
     });
     modalBox.addEventListener('click', e => e.stopPropagation());
     timeboxElement.appendChild(modalBox);
   });
 }
 
-// Adding timeboxes
-
-let modalBox;
-
-function addDraftTimeboxToDocument(startMinute) {
-  startMinute = startMinute - dayStartsAtMin;
-  const endMinute = startMinute + 45;
-
-  // Timebox outer container.
-  modalBox = document.createElement('article');
-  modalBox.classList.add('timebox', 'timebox-draft');
-  modalBox.style.setProperty('--start-minute', startMinute);
-  modalBox.style.setProperty('--end-minute', endMinute);
-  agendaElement.appendChild(modalBox);
-
-  // Form.
-  const form = document.createElement('form');
-  form.addEventListener('submit', draftTimeboxSubmitHandler);
-  modalBox.appendChild(form);
-
-  // Details input.
-  const details = document.createElement('textarea');
-  details.name = 'details';
-  details.placeholder = 'Work on something deeply';
-  // Prevent adding line breaks (incl. from copy&paste).
-  details.addEventListener('input', e => {
-    e.target.value = e.target.value.replace(/\n/g, '');
-  });
-  form.appendChild(details);
-  details.focus();
-
-  // Submit button.
-  const submitBtn = document.createElement('button');
-  submitBtn.type = 'submit';
-  // Wire hitting 'enter' in the textarea to clicking submit.
-  details.addEventListener('keydown', e => {
-    if (e.key == "Enter" && details.value !== "") {
-      form.requestSubmit();
-    }
-  });
-  form.appendChild(submitBtn);
-
-  // Abort (x) button.
-  const closeBtn = document.createElement('div');
-  closeBtn.className = 'closeBtn';
-  closeBtn.textContent = '×';
-  closeBtn.addEventListener('click', e => {
-    e.stopPropagation();  // Avoid opening a new timebox underneath.
-    removeModalBoxFromDocument();
-  });
-  modalBox.appendChild(closeBtn);
-
-  // Abort by hitting esc
-  modalBox.addEventListener('keydown', e => {
-    if (e.key == "Escape") {
-      removeModalBoxFromDocument();
-    }
-  });
-
-  // Stop clicks into the box from moving the box to a new time.
-  modalBox.addEventListener('click', e => e.stopPropagation());
-}
-
-function draftTimeboxSubmitHandler(e) {
+function submitDraftTimebox(e) {
   e.preventDefault();
 
   let project = null;
@@ -431,12 +426,12 @@ function draftTimeboxSubmitHandler(e) {
       startMinute: Number(modalBox.style.getPropertyValue('--start-minute')) + dayStartsAtMin,
       endMinute: Number(modalBox.style.getPropertyValue('--end-minute')) + dayStartsAtMin
     })
-    .then(removeModalBoxFromDocument)
+    .then(removeModalBox)
     .catch(flashModalBox);
   });
 }
 
-function setUpListenersForAddingTimeboxes() {
+function setUpAgendaListeners() {
   let mouseY;
   agendaElement.addEventListener('mousemove', e => {
     mouseY = e.clientY;
@@ -450,18 +445,21 @@ function setUpListenersForAddingTimeboxes() {
     const mousePosition = mouseY;
     const mouseAtMinute = mousePosition - agendaOffset + dayStartsAtMin;
 
-    addDraftTimeboxToDocument(mouseAtMinute);
+    openDraftTimeboxModal(mouseAtMinute);
   });
 }
+setUpAgendaListeners();
 
-setUpListenersForAddingTimeboxes();
+// Modal box handling.
 
-// Returns false if a box exists but couldn't be removed.
+/**
+ * Returns false if a box exists but couldn't be removed.
+ */
 function maybeRemoveModalBox() {
   if (!modalBox) { return true; }
 
-  if (clickMayDiscardModalBox()) {
-    removeModalBoxFromDocument();
+  if (isModalBoxPristine()) {
+    removeModalBox();
     return true;
   } else {
     flashModalBox()
@@ -469,32 +467,33 @@ function maybeRemoveModalBox() {
   }
 }
 
-function clickMayDiscardModalBox() {
+function removeModalBox() {
+  modalBox.remove();
+  modalBox = null;
+}
+
+function isModalBoxPristine() {
   if (!modalBox) {
     throw new Error('Cannot discard a non-existent modalBox.');
   }
 
+  let formControls = [];
   if (modalBox.classList.contains('timebox-draft')) {
-    const details = modalBox.querySelector('textarea');
-    if (details.value !== '') {
-      return false;
-    }
+    formControls = [modalBox.querySelector('textarea')];
   } else if (modalBox.classList.contains('timebox-edit')) {
-    const inputs = modalBox.querySelectorAll('input');
-    const dirty = Array.from(inputs).some(i => i.defaultValue !== i.value);
-    if (dirty) {
-      return false;
-    }
+    formControls = Array.from(modalBox.querySelectorAll('input'));
   }
 
-  return true;
+  return formControls.every(i => i.defaultValue === i.value);
 }
 
 function flashModalBox() {
   modalBox.classList.add('box-flash');
   setTimeout(() => {
-    modalBox.classList.remove('box-flash');
-  }, 1000);
+    if (modalBox) {  // User may have closed it already.
+      modalBox.classList.remove('box-flash');
+    }
+  }, 800);
 }
 
 // User notifications
