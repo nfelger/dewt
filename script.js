@@ -1,3 +1,22 @@
+// Helpers
+
+function divmod(num, base) {
+  return [Math.floor(num / base), num % base]
+}
+
+function zeroPad(value) {
+  if (value < 10) {
+    return '0' + value;
+  } else {
+    return value;
+  }
+}
+
+function minTo24hrFmt(minutes) {
+  const parts = divmod(minutes, 60);
+  return parts.map(zeroPad).join(':');
+}
+
 // Calendar layout
 
 const agendaElement = document.querySelector('.agenda');
@@ -134,7 +153,6 @@ async function setUpDatabase() {
 }
 
 function iso8601date(date) {
-  const zeroPad = value => value < 10 ? '0' + value : value;
   return `${date.getFullYear()}-${zeroPad(date.getMonth() + 1)}-${zeroPad(date.getDate())}`;
 }
 
@@ -293,11 +311,11 @@ function openTimeboxEditModal(e) {
         <ul>
           <li class="start-minute">
             <label for="start-minute">Start</label>
-            <input type="text" name="start-minute" value="${timebox.startMinute}">
+            <input type="text" name="start-minute" value="${minTo24hrFmt(timebox.startMinute)}">
           </li>
           <li class="end-minute">
             <label for="end-minute">End</label>
-            <input type="text" name="end-minute" value="${timebox.endMinute}">
+            <input type="text" name="end-minute" value="${minTo24hrFmt(timebox.endMinute)}">
           </li>
           <li class="date">
             <label for="date">Date</label>
