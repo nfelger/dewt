@@ -240,14 +240,23 @@ async function updateTimebox(db, timeboxId, attributes) {
 
 async function validateTimebox(db, timebox) {
   const errors = [];
+
+  // Start before end.
+  if (timebox.startMinute >= timebox.endMinute) {
+    errors.push('Timebox must start before it ends. Have a look at the times you entered.');
+  }
+
   const allTimeboxes = await allTimeboxesOnDate(db, new Date());
   for (let tb of allTimeboxes) {
+    // Don't compare to self.
     if (tb.id === timebox.id) { continue; }
+
+    // Timebox overlap.
     if (
       (timebox.startMinute >= tb.startMinute && timebox.startMinute < tb.endMinute) ||
       (timebox.endMinute >= tb.startMinute && timebox.endMinute < tb.endMinute)
     ) {
-      errors.push('Timeboxes may not overlap. Please adjust the times.');
+      errors.push('Timeboxes can\'t overlap. Try adjusting start / end times.');
     }
   }
 
