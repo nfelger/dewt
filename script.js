@@ -404,7 +404,7 @@ function openTimeboxEditModal(e) {
           </li>
           <li class="date">
             <label for="date">Date</label>
-            <input type="text" name="date" required value="${timebox.date}">
+            <input type="text" name="date" required pattern="\\d{4}-\\d{2}-\\d{2}" title="yyyy-mm-dd" value="${timebox.date}">
           </li>
         </ul>
       </fieldset>
@@ -473,11 +473,20 @@ function submitEditTimebox(e) {
   let changedValues = {};
   for (let control of dirtyControls) {
     let value = control.value;
-    if (['start-minute', 'end-minute'].includes(control.name)) {
-      const [hours, minutes] = value.split(':').map(Number);
-      value = hours * 60 + minutes;
+    let name = kebabToCamel(control.name);
+    // Transform data where necessary.
+    switch(name) {
+      case 'startMinute':
+      case 'endMinute':
+        const [hours, minutes] = value.split(':').map(Number);
+        value = hours * 60 + minutes;
+        break;
+      case 'date':
+        const [year, month, day] = value.split('-').map(Number);
+        value = iso8601date(new Date(year, month - 1, day));
+        break;
     }
-    changedValues[kebabToCamel(control.name)] = value;
+    changedValues[name] = value;
   }
 
   const timeboxId = modalBox.dataset.timeboxId;

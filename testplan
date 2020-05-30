@@ -31,8 +31,8 @@ details focused
   - start/end time 01:10 => ok
   - start/end time 10:1 => validation error
   - start time 10:00, end time 9:00 => validation error
-  - date 20/5/2020 => ok
-  - date 35/6/2020 => ok (b/c javascript)
-  - date 124/1/2020 => validation error
+  - date 2020-20-05 => ok
+  - date 2020-13-55 => ok (b/c javascript)
+  - date 2020-1-124 => validation error
   - theme color 0 or 8 => validation error
 
