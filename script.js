@@ -412,7 +412,7 @@ function openTimeboxEditModal(e) {
         <ul>
           <li class="theme-color">
             <label for="theme-color">Color</label>
-            <input type="text" name="theme-color" required value="${timebox.themeColor}">
+            <input type="text" name="theme-color" required pattern="[1-7]" title="any number from 1 to 7" value="${timebox.themeColor}">
           </li>
         </ul>
       </fieldset>
