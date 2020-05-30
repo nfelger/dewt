@@ -320,6 +320,7 @@ function openTimeboxEditModal(e) {
         </ul>
       </fieldset>`);
     modalBox.appendChild(form);
+    modalBox.addEventListener('click', e => e.stopPropagation());
     timeboxElement.appendChild(modalBox);
   });
 }
@@ -447,9 +448,19 @@ function maybeRemoveModalBox() {
 }
 
 function clickMayDiscardModalBox() {
-  if (modalBox && modalBox.classList.contains('timebox-draft')) {
+  if (!modalBox) {
+    throw new Error('Cannot discard a non-existent modalBox.');
+  }
+
+  if (modalBox.classList.contains('timebox-draft')) {
     const details = modalBox.querySelector('textarea');
     if (details.value !== '') {
+      return false;
+    }
+  } else if (modalBox.classList.contains('timebox-edit')) {
+    const inputs = modalBox.querySelectorAll('input');
+    const dirty = Array.from(inputs).some(i => i.defaultValue !== i.value);
+    if (dirty) {
       return false;
     }
   }
