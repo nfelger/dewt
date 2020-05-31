@@ -1,260 +1,13 @@
 import { minutesToTimeStr, timeStrToMinutes, iso8601date, kebabToCamel } from './helpers';
+import AgendaView from './agenda_view';
 import { validatesStartBeforeEnd } from './form_validations';
+import { dbPromise, addTestData } from './database';
+import { allTimeboxesOnDate, loadTimebox, createTimebox, updateTimebox } from './timebox_data';
 
-// Routing
-function parseCalendarDateFromLocation() {
-  const location = new URL(window.location.href);
-  const dateStr = location.searchParams.get('date');
-
-  if (dateStr === null) {
-    return new Date();
-  } else if (dateStr.match(/\d{4}-\d{2}-\d{2}/)) {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day);
-  } else {
-    document.querySelector('body').innerHTML = '<h1>Page not found</h1><p>You really shouldn\'t be here…</p>';
-    throw Error(`Malformed date! ${dateStr}`);
-  }
-}
-
-
-// Calendar layout
-class CalendarView {
-  constructor(agendaElement, totalMinutes, dayStartsAtMin) {
-    this.agendaElement = agendaElement;
-    this.totalMinutes = totalMinutes;
-    this.dayStartsAtMin = dayStartsAtMin;
-    this.dateStr = parseCalendarDateFromLocation();
-  }
-
-  draw() {
-    this._setTotalMinutesOnAgendaElement();
-    this._drawCalendarDate();
-    this._drawHours();
-    this._drawMajorLines();
-    this._drawMinorLines();
-    this._drawNowRule();
-  }
-
-  _setTotalMinutesOnAgendaElement() {
-    this.agendaElement.style.setProperty('--total-minutes', this.totalMinutes);
-  }
-
-  _drawCalendarDate() {
-    const dateFmtOptions = { month: 'short', weekday: 'short' };
-    const [weekday, month] = new Intl.DateTimeFormat('en-US', dateFmtOptions)
-      .formatToParts(this.dateStr)
-      .filter(({ type }) => Object.keys(dateFmtOptions).includes(type))
-      .map(({ value }) => value);
-    const date = this.dateStr.getDate();
-
-    const dayElements = document.querySelectorAll('.day p');
-    dayElements[0].textContent = weekday;
-    dayElements[1].textContent = date;
-    dayElements[2].textContent = month;
-  }
-
-  _drawHours() {
-    const firstFullHour = 60 - this.dayStartsAtMin % 60;
-
-    for (let min = firstFullHour; min < this.totalMinutes; min += 60) {
-      const hour = document.createElement('h3');
-      hour.className = 'time-hint';
-      hour.style.setProperty('--start-minute', min);
-      hour.style.setProperty('--end-minute', min + 59);
-      hour.textContent = (this.dayStartsAtMin + min) / 60;
-
-      const minute = document.createElement('sup');
-      minute.textContent = '00';
-      hour.appendChild(minute);
-
-      this.agendaElement.appendChild(hour);
-    }
-  }
-
-  _drawMajorLines() {
-    const firstLineAfter = 60 - this.dayStartsAtMin % 60;
-    this._drawLinesEvery60Min('rule-major', firstLineAfter);
-  }
-
-  _drawMinorLines() {
-    let firstLineAfter;
-
-    if (this.dayStartsAtMin % 60 < 30) {
-      firstLineAfter = 30 - this.dayStartsAtMin % 30;
-    } else {
-      firstLineAfter = 60 - (this.dayStartsAtMin - 30) % 60;
-    }
-
-    this._drawLinesEvery60Min('rule-minor', firstLineAfter);
-  }
-
-  _drawNowRule() {
-    const nowRule = document.createElement('div');
-    nowRule.className = 'rule-now';
-    this.agendaElement.appendChild(nowRule);
-
-    const dayStartsAtMin = this.dayStartsAtMin;
-    const totalMinutes = this.totalMinutes;
-    function updateNowRulePosition() {
-      const now = new Date();
-      const nowInMinutes = now.getHours() * 60 + now.getMinutes() - dayStartsAtMin;
-
-      if (nowInMinutes >= totalMinutes) {
-        nowRule.remove();
-        return;
-      }
-
-      nowRule.style.setProperty('--start-minute', nowInMinutes);
-
-      setTimeout(updateNowRulePosition, 60000);
-    }
-    updateNowRulePosition();
-  }
-
-  _drawLinesEvery60Min(className, firstLineAfter) {
-    for (let min = firstLineAfter; min < this.totalMinutes; min += 60) {
-      const line = document.createElement('div');
-      line.className = className;
-      line.style.setProperty('--start-minute', min);
-      this.agendaElement.appendChild(line);
-    }
-  }
-}
-
-const calendarView = new CalendarView(document.querySelector('.agenda'), 14 * 60, 7 * 60);
+const calendarView = new AgendaView(document.querySelector('.agenda'), 14 * 60, 7 * 60);
 calendarView.draw();
 
-
-// Database access
-
-import { openDB } from 'idb';
-
-async function setUpDatabase() {
-  const db = await openDB('dewt', 1, {
-    upgrade(db) {
-      const timeboxesStore = db.createObjectStore('timeboxes', { keyPath: 'id', autoIncrement: true });
-
-      for (let field of ['project', 'details', 'themeColor', 'startMinute', 'endMinute', 'date']) {
-        timeboxesStore.createIndex(field, field, {unique: false});
-      }
-
-      const workhoursStore = db.createObjectStore('workhours', { keyPath: 'id', autoIncrement: true });
-      workhoursStore.createIndex('date', 'date');
-    }
-  });
-
-  return db;
-}
-
-async function addTestData(db) {
-  const today = new Date();
-  const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-  const todayStr = iso8601date(today);
-  const tomorrowStr = iso8601date(tomorrow);
-
-  const testData = [
-    {
-      project: 'writing',
-      details: 'Aufsatz zur Verwandlung von Pangolinen',
-      themeColor: 1,
-      date: todayStr,
-      startMinute: 9*60 + 30,
-      endMinute: 11*60 + 10,
-      id: 1
-    },
-    {
-      project: 'Dewt',
-      details: 'Dewt Namen finden',
-      themeColor: 2,
-      date: todayStr,
-      startMinute: 11*60 + 23,
-      endMinute: 12*60 + 45,
-      id: 2
-    },
-    {
-      project: null,
-      details: 'Email',
-      themeColor: 1,
-      date: todayStr,
-      startMinute: 12*60 + 45,
-      endMinute: 15*60,
-      id: 3
-    },
-    {
-      project: 'I SHOULD',
-      details: 'NOT APPEAR',
-      themeColor: 3,
-      date: tomorrowStr,
-      startMinute: 9*60,
-      endMinute: 15*60,
-      id: 4
-    }
-  ];
-
-  for (let item of testData) {
-    if (await db.get('timeboxes', item.id)){
-      await db.delete('timeboxes', item.id);
-    }
-    await db.put('timeboxes', item);
-  }
-}
-
-async function allTimeboxesOnDate(db, date) {
-  return await db.getAllFromIndex('timeboxes', 'date', iso8601date(date));
-}
-
-async function loadTimebox(db, id) {
-  return await db.get('timeboxes', Number(id));
-}
-
-async function createTimebox(db, timebox) {
-  await validateTimebox(db, timebox);
-  const timeboxId = await db.put('timeboxes', timebox);
-  timebox.id = timeboxId;
-  drawTimebox(timebox);
-}
-
-async function updateTimebox(db, timeboxId, attributes) {
-  const timebox = await loadTimebox(db, timeboxId);
-  for (let [name, value] of Object.entries(attributes)) {
-    timebox[name] = value;
-  }
-  await validateTimebox(db, timebox);
-  await db.put('timeboxes', timebox);
-  drawTimebox(timebox);
-}
-
-async function validateTimebox(db, timebox) {
-  const errors = [];
-
-  const allTimeboxes = await allTimeboxesOnDate(db, new Date());
-  for (let tb of allTimeboxes) {
-    // Don't compare to self.
-    if (tb.id === timebox.id) { continue; }
-
-    // Timebox overlap.
-    if (
-      (timebox.startMinute >= tb.startMinute && timebox.startMinute < tb.endMinute) ||
-      (timebox.endMinute >= tb.startMinute && timebox.endMinute < tb.endMinute)
-    ) {
-      errors.push('Timeboxes can\'t overlap. Try adjusting start / end times.');
-    }
-  }
-
-  if (errors.length > 0) {
-    for (let error of errors) {
-      notifyUser(error, notificationLevel.error);
-    }
-    throw new Error('Timebox validation failed.');
-  }
-
-  return errors === [];
-}
-
-const dbPromise = setUpDatabase();
 dbPromise.then(addTestData);
-
 
 // Timebox UI
 
@@ -267,7 +20,6 @@ async function drawAllTimeboxes(db) {
     drawTimebox(timebox);
   }
 }
-dbPromise.then(drawAllTimeboxes);
 
 function drawTimebox(timebox) {
   const existingTimebox = document.querySelector(`article[data-timebox-id="${timebox.id}"]`);
@@ -446,7 +198,7 @@ async function submitDraftTimebox(e) {
 
   const db = await dbPromise;
   try {
-    createTimebox(db, {
+    const timebox = await createTimebox(db, {
       project: project,
       details: details,
       themeColor: 1,
@@ -454,6 +206,7 @@ async function submitDraftTimebox(e) {
       startMinute: Number(modalBox.style.getPropertyValue('--start-minute')) + calendarView.dayStartsAtMin,
       endMinute: Number(modalBox.style.getPropertyValue('--end-minute')) + calendarView.dayStartsAtMin
     });
+    drawTimebox(timebox);
     removeModalBox();
   } catch {
     flashModalBox();
@@ -492,14 +245,15 @@ async function submitEditTimebox(e) {
   const timeboxId = modalBox.dataset.timeboxId;
   const db = await dbPromise;
   try {
-    updateTimebox(db, timeboxId, changedValues);
+    const timebox = await updateTimebox(db, timeboxId, changedValues);
+    drawTimebox(timebox);
     removeModalBox();
   } catch {
     flashModalBox();
   }
 }
 
-function setUpAgendaListeners() {
+function setUpAgendaListeners(calendarView) {
   let mouseY;
   calendarView.agendaElement.addEventListener('mousemove', e => {
     mouseY = e.clientY;
@@ -516,7 +270,8 @@ function setUpAgendaListeners() {
     openDraftTimeboxModal(mouseAtMinute);
   });
 }
-setUpAgendaListeners();
+dbPromise.then(drawAllTimeboxes);
+setUpAgendaListeners(calendarView);
 
 
 // Work hours.
@@ -609,7 +364,6 @@ async function drawWorkhours(db) {
   workhoursElement.style.setProperty('--end-minute', workhours.endMinute - calendarView.dayStartsAtMin);
   calendarView.agendaElement.appendChild(workhoursElement);
 }
-dbPromise.then(drawWorkhours);
 
 function setUpSetWorkhoursListener() {
   const setWorkhoursLink = calendarView.agendaElement.querySelector('.set-work-hours a');
@@ -618,6 +372,7 @@ function setUpSetWorkhoursListener() {
     openWorkHoursModal();
   });
 }
+dbPromise.then(drawWorkhours);
 setUpSetWorkhoursListener();
 
 
@@ -666,27 +421,3 @@ function flashModalBox() {
     }
   }, 800);
 }
-
-
-// User notifications
-const notificationLevel = {
-  error: 'error',
-  info: 'info',
-  success: 'success'
-}
-const notificationsElement = document.querySelector('.notifications');
-function notifyUser(message, level) {
-  const notification = document.createElement('div');
-  notification.classList.add('notification', level);
-  notificationsElement.appendChild(notification);
-  const messageElement = document.createElement('p');
-  messageElement.textContent = message;
-  notification.appendChild(messageElement);
-  notification.addEventListener('click', () => {
-    notification.classList.add('hide');
-    setTimeout(function() {
-      notification.remove();
-    }, 200);
-  });
-}
-

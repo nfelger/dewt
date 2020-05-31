@@ -1,5 +1,3 @@
-// Helpers
-
 export function divmod(num, base) {
   return [Math.floor(num / base), num % base];
 }
