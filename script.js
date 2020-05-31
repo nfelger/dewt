@@ -399,7 +399,7 @@ function openDraftTimeboxModal(startMinute) {
   modalBox.addEventListener('click', e => e.stopPropagation());
 }
 
-function openTimeboxEditModal(e) {
+async function openTimeboxEditModal(e) {
   // Stop clicks from bubbling to the agenda.
   e.stopPropagation();
 
@@ -407,72 +407,73 @@ function openTimeboxEditModal(e) {
 
   const timeboxElement = e.currentTarget;
   const timeboxId = timeboxElement.dataset.timeboxId;
-  dbPromise.then(db => loadTimebox(db, timeboxId)).then(timebox => {
-    modalBox = document.createElement('div');
-    modalBox.className = 'timebox-edit';
-    modalBox.dataset.timeboxId = timeboxId;
-    modalBox.insertAdjacentHTML('beforeend', `
-      <form>
-        <fieldset>
-          <ul>
-            <li class="project">
-              <label for="project">Project</label>
-              <input type="text" name="project" value="${timebox.project || ""}">
-            </li>
-            <li class="details">
-              <label for="details">Details</label>
-              <input type="text" name="details" required value="${timebox.details}">
-            </li>
-          </ul>
-        </fieldset>
-        <fieldset>
-          <ul>
-            <li class="start-minute">
-              <label for="start-minute">Start</label>
-              <input type="text" name="start-minute" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minTo24hrFmt(timebox.startMinute)}">
-            </li>
-            <li class="end-minute">
-              <label for="end-minute">End</label>
-              <input type="text" name="end-minute" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minTo24hrFmt(timebox.endMinute)}">
-            </li>
-            <li class="date">
-              <label for="date">Date</label>
-              <input type="text" name="date" required pattern="\\d{4}-\\d{2}-\\d{2}" title="yyyy-mm-dd" value="${timebox.date}">
-            </li>
-          </ul>
-        </fieldset>
-        <fieldset>
-          <ul>
-            <li class="theme-color">
-              <label for="theme-color">Color</label>
-              <input type="text" name="theme-color" required pattern="[1-7]" title="any number from 1 to 7" value="${timebox.themeColor}">
-            </li>
-          </ul>
-        </fieldset>
-        <fieldset>
-          <ul>
-            <li><a href="#">Cancel</a></li>
-            <li><button type="submit">Save</button></li>
-          </ul>
-        </fieldset>
-      </form>`);
-    modalBox.querySelector('a').addEventListener('click', e => {
-      e.preventDefault();
-      removeModalBox();
-    });
-    modalBox.querySelector('button').addEventListener('click', submitEditTimebox);  // TODO: why not a submit handler on the form??
-    modalBox.addEventListener('click', e => e.stopPropagation());
 
-    const form = modalBox.querySelector('form');
-    const [startElement, endElement] = form.querySelectorAll('input[name=start-minute], input[name=end-minute]');
-    startElement.addEventListener('input', validatesStartBeforeEnd(startElement, endElement));
-    endElement.addEventListener('input', validatesStartBeforeEnd(startElement, endElement));
-
-    timeboxElement.appendChild(modalBox);
+  const db = await dbPromise;
+  const timebox = await loadTimebox(db, timeboxId);
+  modalBox = document.createElement('div');
+  modalBox.className = 'timebox-edit';
+  modalBox.dataset.timeboxId = timeboxId;
+  modalBox.insertAdjacentHTML('beforeend', `
+    <form>
+      <fieldset>
+        <ul>
+          <li class="project">
+            <label for="project">Project</label>
+            <input type="text" name="project" value="${timebox.project || ""}">
+          </li>
+          <li class="details">
+            <label for="details">Details</label>
+            <input type="text" name="details" required value="${timebox.details}">
+          </li>
+        </ul>
+      </fieldset>
+      <fieldset>
+        <ul>
+          <li class="start-minute">
+            <label for="start-minute">Start</label>
+            <input type="text" name="start-minute" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minTo24hrFmt(timebox.startMinute)}">
+          </li>
+          <li class="end-minute">
+            <label for="end-minute">End</label>
+            <input type="text" name="end-minute" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minTo24hrFmt(timebox.endMinute)}">
+          </li>
+          <li class="date">
+            <label for="date">Date</label>
+            <input type="text" name="date" required pattern="\\d{4}-\\d{2}-\\d{2}" title="yyyy-mm-dd" value="${timebox.date}">
+          </li>
+        </ul>
+      </fieldset>
+      <fieldset>
+        <ul>
+          <li class="theme-color">
+            <label for="theme-color">Color</label>
+            <input type="text" name="theme-color" required pattern="[1-7]" title="any number from 1 to 7" value="${timebox.themeColor}">
+          </li>
+        </ul>
+      </fieldset>
+      <fieldset>
+        <ul>
+          <li><a href="#">Cancel</a></li>
+          <li><button type="submit">Save</button></li>
+        </ul>
+      </fieldset>
+    </form>`);
+  modalBox.querySelector('a').addEventListener('click', e => {
+    e.preventDefault();
+    removeModalBox();
   });
+  modalBox.querySelector('button').addEventListener('click', submitEditTimebox);  // TODO: why not a submit handler on the form??
+  modalBox.addEventListener('click', e => e.stopPropagation());
+
+  const form = modalBox.querySelector('form');
+  const [startElement, endElement] = form.querySelectorAll('input[name=start-minute], input[name=end-minute]');
+  startElement.addEventListener('input', validatesStartBeforeEnd(startElement, endElement));
+  endElement.addEventListener('input', validatesStartBeforeEnd(startElement, endElement));
+
+  timeboxElement.appendChild(modalBox);
 }
 
-function submitDraftTimebox(e) {
+async function submitDraftTimebox(e) {
   e.preventDefault();
 
   let project = null;
@@ -484,7 +485,8 @@ function submitDraftTimebox(e) {
     details = details.slice(firstColonLocation + 1);
   }
 
-  dbPromise.then(db => {
+  const db = await dbPromise;
+  try {
     createTimebox(db, {
       project: project,
       details: details,
@@ -492,13 +494,14 @@ function submitDraftTimebox(e) {
       date: iso8601date(new Date()),
       startMinute: Number(modalBox.style.getPropertyValue('--start-minute')) + dayStartsAtMin,
       endMinute: Number(modalBox.style.getPropertyValue('--end-minute')) + dayStartsAtMin
-    })
-    .then(removeModalBox)
-    .catch(flashModalBox);
-  });
+    });
+    removeModalBox();
+  } catch {
+    flashModalBox();
+  }
 }
 
-function submitEditTimebox(e) {
+async function submitEditTimebox(e) {
   e.preventDefault();
 
   const form = modalBox.querySelector('form');
@@ -528,11 +531,13 @@ function submitEditTimebox(e) {
   }
 
   const timeboxId = modalBox.dataset.timeboxId;
-  dbPromise.then(db => {
-    updateTimebox(db, timeboxId, changedValues)
-    .then(removeModalBox)
-    .catch(flashModalBox);;
-  })
+  const db = await dbPromise;
+  try {
+    updateTimebox(db, timeboxId, changedValues);
+    removeModalBox();
+  } catch {
+    flashModalBox();
+  }
 }
 
 function setUpAgendaListeners() {
@@ -555,54 +560,53 @@ function setUpAgendaListeners() {
 setUpAgendaListeners();
 
 // Work hours.
-function openWorkHoursModal() {
+async function openWorkHoursModal() {
   if(!maybeRemoveModalBox()) { return; }
 
-  dbPromise.then(db => db.getFromIndex('workhours', 'date', iso8601date(new Date())))
-  .then(workhours => {
-    modalBox = document.createElement('div');
-    modalBox.className = 'work-hours-modal';
-    modalBox.insertAdjacentHTML('beforeend', `
-      <p>Set your working hours:</p>
-      <form>
-        <fieldset>
-          <ul>
-            <li class="work-start">
-              <label for="start">Start</label>
-              <input type="text" name="start" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minTo24hrFmt(workhours.startMinute)}">
-            </li>
-            <li class="work-end">
-              <label for="end">End</label>
-              <input type="text" name="end" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minTo24hrFmt(workhours.endMinute)}">
-            </li>
-          </ul>
-        </fieldset>
-        <fieldset>
-          <ul>
-            <li><a href="#">Cancel</a></li>
-            <li><button type="submit">Save</button></li>
-          </ul>
-        </fieldset>
-      </form>`);
-    agendaElement.appendChild(modalBox);
+  const db = await dbPromise;
+  const workhours = await loadWorkhours(db, iso8601date(new Date()));
+  modalBox = document.createElement('div');
+  modalBox.className = 'work-hours-modal';
+  modalBox.insertAdjacentHTML('beforeend', `
+    <p>Set your working hours:</p>
+    <form>
+      <fieldset>
+        <ul>
+          <li class="work-start">
+            <label for="start">Start</label>
+            <input type="text" name="start" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minTo24hrFmt(workhours.startMinute)}">
+          </li>
+          <li class="work-end">
+            <label for="end">End</label>
+            <input type="text" name="end" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minTo24hrFmt(workhours.endMinute)}">
+          </li>
+        </ul>
+      </fieldset>
+      <fieldset>
+        <ul>
+          <li><a href="#">Cancel</a></li>
+          <li><button type="submit">Save</button></li>
+        </ul>
+      </fieldset>
+    </form>`);
+  agendaElement.appendChild(modalBox);
 
-    modalBox.addEventListener('click', e => e.stopPropagation());
+  modalBox.addEventListener('click', e => e.stopPropagation());
 
-    modalBox.querySelector('a').addEventListener('click', e => {
-      e.preventDefault();
-      removeModalBox();
-    });
-
-    const form = modalBox.querySelector('form');
-    form.addEventListener('submit', submitWorkHours);
-
-    const [startElement, endElement] = form.querySelectorAll('input[name=start], input[name=end]');
-    startElement.addEventListener('input', validatesStartBeforeEnd(startElement, endElement));
-    endElement.addEventListener('input', validatesStartBeforeEnd(startElement, endElement));
+  modalBox.querySelector('a').addEventListener('click', e => {
+    e.preventDefault();
+    removeModalBox();
   });
+
+  const form = modalBox.querySelector('form');
+  form.addEventListener('submit', submitWorkHours);
+
+  const [startElement, endElement] = form.querySelectorAll('input[name=start], input[name=end]');
+  startElement.addEventListener('input', validatesStartBeforeEnd(startElement, endElement));
+  endElement.addEventListener('input', validatesStartBeforeEnd(startElement, endElement));
 }
 
-function submitWorkHours(e) {
+async function submitWorkHours(e) {
   e.preventDefault();
 
   const formData = new FormData(e.target);
@@ -611,9 +615,10 @@ function submitWorkHours(e) {
     startMinute: time24HourFmtToMin(formData.get('start')),
     endMinute: time24HourFmtToMin(formData.get('end'))
   };
-  dbPromise.then(db => saveWorkhours(db, workhours))
-  .then(removeModalBox)
-  .then(() => dbPromise.then(drawWorkhours));
+  const db = await dbPromise;
+  await saveWorkhours(db, workhours);
+  removeModalBox();
+  drawWorkhours(db);
 }
 
 async function saveWorkhours(db, workhours) {
