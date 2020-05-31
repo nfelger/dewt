@@ -1,7 +1,7 @@
 // Helpers
 
 function divmod(num, base) {
-  return [Math.floor(num / base), num % base]
+  return [Math.floor(num / base), num % base];
 }
 
 function zeroPad(value) {
@@ -12,12 +12,12 @@ function zeroPad(value) {
   }
 }
 
-function minTo24hrFmt(minutes) {
+function minutesToTimeStr(minutes) {
   const parts = divmod(minutes, 60);
   return parts.map(zeroPad).join(':');
 }
 
-function time24HourFmtToMin(timeString) {
+function timeStrToMinutes(timeString) {
   const [hours, minutes] = timeString.split(':').map(Number);
   return hours * 60 + minutes;
 }
@@ -31,9 +31,9 @@ function kebabToCamel(name) {
 }
 
 function validatesStartBeforeEnd(startElement, endElement) {
-  return e => {
-    const start = time24HourFmtToMin(startElement.value);
-    const end = time24HourFmtToMin(endElement.value);
+  return () => {
+    const start = timeStrToMinutes(startElement.value);
+    const end = timeStrToMinutes(endElement.value);
 
     let msg;
     if (start >= end) {
@@ -47,78 +47,101 @@ function validatesStartBeforeEnd(startElement, endElement) {
   };
 }
 
-// Calendar layout
+// Routing
+function parseCalendarDateFromLocation() {
+  const location = new URL(window.location.href);
+  const dateStr = location.searchParams.get('date');
 
-const agendaElement = document.querySelector('.agenda');
-const hoursToDraw = 14;
-const totalMinutes = hoursToDraw * 60;
-const dayStartsAtMin = 420;
-
-function drawCalendarDate(calendarDate) {
-  const dateFmtOptions = { month: 'short', weekday: 'short' };
-  const [weekday, month] = new Intl.DateTimeFormat('en-US', dateFmtOptions)
-    .formatToParts(calendarDate)
-    .filter(({type}) => Object.keys(dateFmtOptions).includes(type))
-    .map(({value}) => value);
-  const date = calendarDate.getDate();
-
-  const dayElements = document.querySelectorAll('.day p');
-  dayElements[0].textContent = weekday;
-  dayElements[1].textContent = date;
-  dayElements[2].textContent = month;
+  if (dateStr === null) {
+    return new Date();
+  } else if (dateStr.match(/\d{4}-\d{2}-\d{2}/)) {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  } else {
+    document.querySelector('body').innerHTML = '<h1>Page not found</h1><p>You really shouldn\'t be here…</p>';
+    throw Error(`Malformed date! ${dateStr}`);
+  }
 }
 
-function drawTimeHints() {
 
-  function drawHours() {
-    const firstFullHour = 60 - dayStartsAtMin % 60;
+// Calendar layout
+class CalendarView {
+  constructor(agendaElement, totalMinutes, dayStartsAtMin) {
+    this.agendaElement = agendaElement;
+    this.totalMinutes = totalMinutes;
+    this.dayStartsAtMin = dayStartsAtMin;
+    this.dateStr = parseCalendarDateFromLocation();
+  }
 
-    for (let min = firstFullHour; min < totalMinutes; min += 60) {
+  draw() {
+    this._setTotalMinutesOnAgendaElement();
+    this._drawCalendarDate();
+    this._drawHours();
+    this._drawMajorLines();
+    this._drawMinorLines();
+    this._drawNowRule();
+  }
+
+  _setTotalMinutesOnAgendaElement() {
+    this.agendaElement.style.setProperty('--total-minutes', this.totalMinutes);
+  }
+
+  _drawCalendarDate() {
+    const dateFmtOptions = { month: 'short', weekday: 'short' };
+    const [weekday, month] = new Intl.DateTimeFormat('en-US', dateFmtOptions)
+      .formatToParts(this.dateStr)
+      .filter(({ type }) => Object.keys(dateFmtOptions).includes(type))
+      .map(({ value }) => value);
+    const date = this.dateStr.getDate();
+
+    const dayElements = document.querySelectorAll('.day p');
+    dayElements[0].textContent = weekday;
+    dayElements[1].textContent = date;
+    dayElements[2].textContent = month;
+  }
+
+  _drawHours() {
+    const firstFullHour = 60 - this.dayStartsAtMin % 60;
+
+    for (let min = firstFullHour; min < this.totalMinutes; min += 60) {
       const hour = document.createElement('h3');
       hour.className = 'time-hint';
       hour.style.setProperty('--start-minute', min);
       hour.style.setProperty('--end-minute', min + 59);
-      hour.textContent = (dayStartsAtMin + min) / 60;
+      hour.textContent = (this.dayStartsAtMin + min) / 60;
 
       const minute = document.createElement('sup');
       minute.textContent = '00';
       hour.appendChild(minute);
 
-      agendaElement.appendChild(hour);
+      this.agendaElement.appendChild(hour);
     }
   }
 
-  function drawLinesEvery60Min(className, firstLineAfter) {
-    for (let min = firstLineAfter; min < totalMinutes; min += 60) {
-      const line = document.createElement('div');
-      line.className = className;
-      line.style.setProperty('--start-minute', min);
-      agendaElement.appendChild(line);
-    }
+  _drawMajorLines() {
+    const firstLineAfter = 60 - this.dayStartsAtMin % 60;
+    this._drawLinesEvery60Min('rule-major', firstLineAfter);
   }
 
-  function drawMajorLines() {
-    const firstLineAfter = 60 - dayStartsAtMin % 60;
-    drawLinesEvery60Min('rule-major', firstLineAfter)
-  }
-
-  function drawMinorLines() {
+  _drawMinorLines() {
     let firstLineAfter;
 
-    if (dayStartsAtMin % 60 < 30) {
-      firstLineAfter = 30 - dayStartsAtMin % 30;
+    if (this.dayStartsAtMin % 60 < 30) {
+      firstLineAfter = 30 - this.dayStartsAtMin % 30;
     } else {
-      firstLineAfter = 60 - (dayStartsAtMin - 30) % 60;
+      firstLineAfter = 60 - (this.dayStartsAtMin - 30) % 60;
     }
 
-    drawLinesEvery60Min('rule-minor', firstLineAfter);
+    this._drawLinesEvery60Min('rule-minor', firstLineAfter);
   }
 
-  function drawNowRule() {
+  _drawNowRule() {
     const nowRule = document.createElement('div');
     nowRule.className = 'rule-now';
-    agendaElement.appendChild(nowRule);
+    this.agendaElement.appendChild(nowRule);
 
+    const dayStartsAtMin = this.dayStartsAtMin;
+    const totalMinutes = this.totalMinutes;
     function updateNowRulePosition() {
       const now = new Date();
       const nowInMinutes = now.getHours() * 60 + now.getMinutes() - dayStartsAtMin;
@@ -135,38 +158,19 @@ function drawTimeHints() {
     updateNowRulePosition();
   }
 
-  drawHours();
-  drawMajorLines();
-  drawMinorLines();
-  drawNowRule();
-}
-
-function parseLocationForCalendarDate() {
-  const location = new URL(window.location.href);
-  const dateStr = location.searchParams.get('date');
-
-  if (dateStr === null) {
-    return new Date();
-  } else if (dateStr.match(/\d{4}-\d{2}-\d{2}/)) {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day);
-  } else {
-    document.querySelector('body').innerHTML = '<h1>Page not found</h1><p>You really shouldn\'t be here…</p>';
-    throw Error(`Malformed date! ${dateStr}`);
+  _drawLinesEvery60Min(className, firstLineAfter) {
+    for (let min = firstLineAfter; min < this.totalMinutes; min += 60) {
+      const line = document.createElement('div');
+      line.className = className;
+      line.style.setProperty('--start-minute', min);
+      this.agendaElement.appendChild(line);
+    }
   }
 }
 
-function drawView() {
-  agendaElement.style.setProperty('--total-minutes', totalMinutes);
-  drawCalendarDate(parseLocationForCalendarDate());
-  drawTimeHints();
-  agendaElement.querySelector('.set-work-hours a').addEventListener('click', e => {
-    e.stopPropagation();
-    openWorkHoursModal();
-  });
-}
+const calendarView = new CalendarView(document.querySelector('.agenda'), 14 * 60, 7 * 60);
+calendarView.draw();
 
-drawView();
 
 // Database access
 
@@ -297,6 +301,7 @@ async function validateTimebox(db, timebox) {
 const dbPromise = setUpDatabase();
 dbPromise.then(addTestData);
 
+
 // Timebox UI
 
 let modalBox;
@@ -322,8 +327,8 @@ function drawTimebox(timebox) {
 
   const timeboxElement = document.createElement('article');
   timeboxElement.classList.add('timebox', `theme-color-${timebox.themeColor}`);
-  timeboxElement.style.setProperty('--start-minute', timebox.startMinute - dayStartsAtMin);
-  timeboxElement.style.setProperty('--end-minute', timebox.endMinute - dayStartsAtMin);
+  timeboxElement.style.setProperty('--start-minute', timebox.startMinute - calendarView.dayStartsAtMin);
+  timeboxElement.style.setProperty('--end-minute', timebox.endMinute - calendarView.dayStartsAtMin);
 
   const details = document.createElement('h4');
   details.textContent = timebox.details;
@@ -337,11 +342,11 @@ function drawTimebox(timebox) {
 
   timeboxElement.addEventListener('click', openTimeboxEditModal);
 
-  agendaElement.appendChild(timeboxElement);
+  calendarView.agendaElement.appendChild(timeboxElement);
 }
 
 function openDraftTimeboxModal(startMinute) {
-  startMinute = startMinute - dayStartsAtMin;
+  startMinute = startMinute - calendarView.dayStartsAtMin;
   const endMinute = startMinute + 45;
 
   // Timebox outer container.
@@ -349,7 +354,7 @@ function openDraftTimeboxModal(startMinute) {
   modalBox.classList.add('timebox', 'timebox-draft');
   modalBox.style.setProperty('--start-minute', startMinute);
   modalBox.style.setProperty('--end-minute', endMinute);
-  agendaElement.appendChild(modalBox);
+  calendarView.agendaElement.appendChild(modalBox);
 
   // Form.
   const form = document.createElement('form');
@@ -431,11 +436,11 @@ async function openTimeboxEditModal(e) {
         <ul>
           <li class="start-minute">
             <label for="start-minute">Start</label>
-            <input type="text" name="start-minute" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minTo24hrFmt(timebox.startMinute)}">
+            <input type="text" name="start-minute" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minutesToTimeStr(timebox.startMinute)}">
           </li>
           <li class="end-minute">
             <label for="end-minute">End</label>
-            <input type="text" name="end-minute" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minTo24hrFmt(timebox.endMinute)}">
+            <input type="text" name="end-minute" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minutesToTimeStr(timebox.endMinute)}">
           </li>
           <li class="date">
             <label for="date">Date</label>
@@ -492,8 +497,8 @@ async function submitDraftTimebox(e) {
       details: details,
       themeColor: 1,
       date: iso8601date(new Date()),
-      startMinute: Number(modalBox.style.getPropertyValue('--start-minute')) + dayStartsAtMin,
-      endMinute: Number(modalBox.style.getPropertyValue('--end-minute')) + dayStartsAtMin
+      startMinute: Number(modalBox.style.getPropertyValue('--start-minute')) + calendarView.dayStartsAtMin,
+      endMinute: Number(modalBox.style.getPropertyValue('--end-minute')) + calendarView.dayStartsAtMin
     });
     removeModalBox();
   } catch {
@@ -520,7 +525,7 @@ async function submitEditTimebox(e) {
     switch(name) {
       case 'startMinute':
       case 'endMinute':
-        value = time24HourFmtToMin(value);
+        value = timeStrToMinutes(value);
         break;
       case 'date':
         const [year, month, day] = value.split('-').map(Number);
@@ -542,22 +547,23 @@ async function submitEditTimebox(e) {
 
 function setUpAgendaListeners() {
   let mouseY;
-  agendaElement.addEventListener('mousemove', e => {
+  calendarView.agendaElement.addEventListener('mousemove', e => {
     mouseY = e.clientY;
   });
 
-  agendaElement.addEventListener('click', e => {
+  calendarView.agendaElement.addEventListener('click', e => {
     if(!maybeRemoveModalBox()) { return; }
 
     // Use the fact that 1min == 1px.
-    const agendaOffset = agendaElement.getBoundingClientRect().y;
+    const agendaOffset = calendarView.agendaElement.getBoundingClientRect().y;
     const mousePosition = mouseY;
-    const mouseAtMinute = mousePosition - agendaOffset + dayStartsAtMin;
+    const mouseAtMinute = mousePosition - agendaOffset + calendarView.dayStartsAtMin;
 
     openDraftTimeboxModal(mouseAtMinute);
   });
 }
 setUpAgendaListeners();
+
 
 // Work hours.
 async function openWorkHoursModal() {
@@ -574,11 +580,11 @@ async function openWorkHoursModal() {
         <ul>
           <li class="work-start">
             <label for="start">Start</label>
-            <input type="text" name="start" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minTo24hrFmt(workhours.startMinute)}">
+            <input type="text" name="start" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minutesToTimeStr(workhours.startMinute)}">
           </li>
           <li class="work-end">
             <label for="end">End</label>
-            <input type="text" name="end" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minTo24hrFmt(workhours.endMinute)}">
+            <input type="text" name="end" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minutesToTimeStr(workhours.endMinute)}">
           </li>
         </ul>
       </fieldset>
@@ -589,7 +595,7 @@ async function openWorkHoursModal() {
         </ul>
       </fieldset>
     </form>`);
-  agendaElement.appendChild(modalBox);
+  calendarView.agendaElement.appendChild(modalBox);
 
   modalBox.addEventListener('click', e => e.stopPropagation());
 
@@ -612,8 +618,8 @@ async function submitWorkHours(e) {
   const formData = new FormData(e.target);
   const workhours = {
     date: iso8601date(new Date()),
-    startMinute: time24HourFmtToMin(formData.get('start')),
-    endMinute: time24HourFmtToMin(formData.get('end'))
+    startMinute: timeStrToMinutes(formData.get('start')),
+    endMinute: timeStrToMinutes(formData.get('end'))
   };
   const db = await dbPromise;
   await saveWorkhours(db, workhours);
@@ -645,11 +651,21 @@ async function drawWorkhours(db) {
   const workhours = await loadWorkhours(db, iso8601date(new Date()));
 
   const workhoursElement = document.querySelector('.work-hours');
-  workhoursElement.style.setProperty('--start-minute', workhours.startMinute - dayStartsAtMin);
-  workhoursElement.style.setProperty('--end-minute', workhours.endMinute - dayStartsAtMin);
-  agendaElement.appendChild(workhoursElement);
+  workhoursElement.style.setProperty('--start-minute', workhours.startMinute - calendarView.dayStartsAtMin);
+  workhoursElement.style.setProperty('--end-minute', workhours.endMinute - calendarView.dayStartsAtMin);
+  calendarView.agendaElement.appendChild(workhoursElement);
 }
 dbPromise.then(drawWorkhours);
+
+function setUpSetWorkhoursListener() {
+  const setWorkhoursLink = calendarView.agendaElement.querySelector('.set-work-hours a');
+  setWorkhoursLink.addEventListener('click', e => {
+    e.stopPropagation();
+    openWorkHoursModal();
+  });
+}
+setUpSetWorkhoursListener();
+
 
 // Modal box handling.
 
@@ -696,6 +712,7 @@ function flashModalBox() {
     }
   }, 800);
 }
+
 
 // User notifications
 const notificationLevel = {
