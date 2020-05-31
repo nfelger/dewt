@@ -17,6 +17,11 @@ function minTo24hrFmt(minutes) {
   return parts.map(zeroPad).join(':');
 }
 
+function time24HourFmtToMin(timeString) {
+  const [hours, minutes] = timeString.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
 function iso8601date(date) {
   return `${date.getFullYear()}-${zeroPad(date.getMonth() + 1)}-${zeroPad(date.getDate())}`;
 }
@@ -138,6 +143,10 @@ function drawView() {
   agendaElement.style.setProperty('--total-minutes', totalMinutes);
   drawCalendarDate(parseLocationForCalendarDate());
   drawTimeHints();
+  agendaElement.querySelector('.set-work-hours a').addEventListener('click', e => {
+    e.stopPropagation();
+    openWorkHoursModal();
+  });
 }
 
 drawView();
@@ -148,12 +157,15 @@ import { openDB } from 'https://unpkg.com/idb@5.0.3?module';
 
 async function setUpDatabase() {
   const db = await openDB('dewt', 1, {
-    upgrade(db, oldVersion, newVersion, transaction) {
-      const objStore = db.createObjectStore('timeboxes', { keyPath: 'id', autoIncrement: true });
+    upgrade(db) {
+      const timeboxesStore = db.createObjectStore('timeboxes', { keyPath: 'id', autoIncrement: true });
 
       for (let field of ['project', 'details', 'themeColor', 'startMinute', 'endMinute', 'date']) {
-        objStore.createIndex(field, field, {unique: false});
+        timeboxesStore.createIndex(field, field, {unique: false});
       }
+
+      const workhoursStore = db.createObjectStore('workhours', { keyPath: 'id', autoIncrement: true });
+      workhoursStore.createIndex('date', 'date');
     }
   });
 
@@ -387,8 +399,8 @@ function openTimeboxEditModal(e) {
     modalBox = document.createElement('div');
     modalBox.className = 'timebox-edit';
     modalBox.dataset.timeboxId = timeboxId;
-    const form = document.createElement('form');
-    form.insertAdjacentHTML('beforeend', `
+    modalBox.insertAdjacentHTML('beforeend', `
+      <form>
       <fieldset>
         <ul>
           <li class="project">
@@ -430,13 +442,13 @@ function openTimeboxEditModal(e) {
           <li><a href="#">Cancel</a></li>
           <li><button type="submit">Save</button></li>
         </ul>
-      </fieldset>`);
-    modalBox.appendChild(form);
-    form.querySelector('a').addEventListener('click', e => {
+        </fieldset>
+      </form>`);
+    modalBox.querySelector('a').addEventListener('click', e => {
       e.preventDefault();
       removeModalBox();
     });
-    form.querySelector('button').addEventListener('click', submitEditTimebox);
+    modalBox.querySelector('button').addEventListener('click', submitEditTimebox);  // TODO: why not a submit handler on the form??
     modalBox.addEventListener('click', e => e.stopPropagation());
     timeboxElement.appendChild(modalBox);
   });
@@ -487,8 +499,7 @@ function submitEditTimebox(e) {
     switch(name) {
       case 'startMinute':
       case 'endMinute':
-        const [hours, minutes] = value.split(':').map(Number);
-        value = hours * 60 + minutes;
+        value = time24HourFmtToMin(value);
         break;
       case 'date':
         const [year, month, day] = value.split('-').map(Number);
@@ -524,6 +535,95 @@ function setUpAgendaListeners() {
   });
 }
 setUpAgendaListeners();
+
+// Work hours.
+function openWorkHoursModal() {
+  if(!maybeRemoveModalBox()) { return; }
+
+  dbPromise.then(db => db.getFromIndex('workhours', 'date', iso8601date(new Date())))
+  .then(workhours => {
+    modalBox = document.createElement('div');
+    modalBox.className = 'work-hours-modal';
+    modalBox.insertAdjacentHTML('beforeend', `
+      <p>Set your working hours:</p>
+      <form>
+        <fieldset>
+          <ul>
+            <li class="work-start">
+              <label for="start">Start</label>
+              <input type="text" name="start" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minTo24hrFmt(workhours.startMinute)}">
+            </li>
+            <li class="work-end">
+              <label for="end">End</label>
+              <input type="text" name="end" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minTo24hrFmt(workhours.endMinute)}">
+            </li>
+          </ul>
+        </fieldset>
+        <fieldset>
+          <ul>
+            <li><a href="#">Cancel</a></li>
+            <li><button type="submit">Save</button></li>
+          </ul>
+        </fieldset>
+      </form>`);
+    agendaElement.appendChild(modalBox);
+
+    modalBox.addEventListener('click', e => e.stopPropagation());
+
+    modalBox.querySelector('a').addEventListener('click', e => {
+      e.preventDefault();
+      removeModalBox();
+    });
+
+    const form = modalBox.querySelector('form');
+    form.addEventListener('submit', submitWorkHours);
+
+  });
+}
+
+function submitWorkHours(e) {
+  e.preventDefault();
+
+  const formData = new FormData(e.target);
+  const workhours = {
+    date: iso8601date(new Date()),
+    startMinute: time24HourFmtToMin(formData.get('start')),
+    endMinute: time24HourFmtToMin(formData.get('end'))
+  };
+  dbPromise.then(db => saveWorkhours(db, workhours))
+  .then(removeModalBox)
+  .then(() => dbPromise.then(drawWorkhours));
+}
+
+async function saveWorkhours(db, workhours) {
+  const existingWorkhours = await db.getFromIndex('workhours', 'date', workhours.date);
+  if (existingWorkhours) {
+    workhours.id = existingWorkhours.id;
+  }
+  await db.put('workhours', workhours);
+}
+
+async function loadWorkhours(db, date) {
+  let workhours = await db.getFromIndex('workhours', 'date', date);
+  if (!workhours) {
+    workhours = {
+      date: date,
+      startMinute: 8*60,
+      endMinute: 18*60
+    };
+  }
+  return workhours;
+}
+
+async function drawWorkhours(db) {
+  const workhours = await loadWorkhours(db, iso8601date(new Date()));
+
+  const workhoursElement = document.querySelector('.work-hours');
+  workhoursElement.style.setProperty('--start-minute', workhours.startMinute - dayStartsAtMin);
+  workhoursElement.style.setProperty('--end-minute', workhours.endMinute - dayStartsAtMin);
+  agendaElement.appendChild(workhoursElement);
+}
+dbPromise.then(drawWorkhours);
 
 // Modal box handling.
 
