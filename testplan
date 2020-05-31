@@ -1,6 +1,7 @@
 Load calendar for today
 - "NOT APPEAR" absent
 - now-line shows at the correct minute
+- work hours should be 8h-18h
 - Click in agenda, but outside TB => draft opens,
 details focused
 - click outside draft => box moves, details focused
@@ -35,4 +36,9 @@ details focused
   - date 2020-13-55 => ok (b/c javascript)
   - date 2020-1-124 => validation error
   - theme color 0 or 8 => validation error
-
+- click 'set work hours' => modal appears
+  - hit [esc] => modal disappears
+  - click cancel => modal disappears
+  - click outside => modal disappears
+  - start/end time validation as in TB edit from
+  - hit return => modal closes, work hours change
