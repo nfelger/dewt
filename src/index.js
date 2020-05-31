@@ -1,51 +1,5 @@
-// Helpers
-
-function divmod(num, base) {
-  return [Math.floor(num / base), num % base];
-}
-
-function zeroPad(value) {
-  if (value < 10) {
-    return '0' + value;
-  } else {
-    return value;
-  }
-}
-
-function minutesToTimeStr(minutes) {
-  const parts = divmod(minutes, 60);
-  return parts.map(zeroPad).join(':');
-}
-
-function timeStrToMinutes(timeString) {
-  const [hours, minutes] = timeString.split(':').map(Number);
-  return hours * 60 + minutes;
-}
-
-function iso8601date(date) {
-  return `${date.getFullYear()}-${zeroPad(date.getMonth() + 1)}-${zeroPad(date.getDate())}`;
-}
-
-function kebabToCamel(name) {
-  return name.replace(/-(\w|$)/g, (_, next) => next.toUpperCase())
-}
-
-function validatesStartBeforeEnd(startElement, endElement) {
-  return () => {
-    const start = timeStrToMinutes(startElement.value);
-    const end = timeStrToMinutes(endElement.value);
-
-    let msg;
-    if (start >= end) {
-      msg = "Start can't be after end.";
-    } else {
-      msg = ""
-    }
-
-    startElement.setCustomValidity(msg);
-    endElement.setCustomValidity(msg)
-  };
-}
+import { minutesToTimeStr, timeStrToMinutes, iso8601date, kebabToCamel } from './helpers';
+import { validatesStartBeforeEnd } from './form_validations';
 
 // Routing
 function parseCalendarDateFromLocation() {
@@ -174,7 +128,7 @@ calendarView.draw();
 
 // Database access
 
-import { openDB } from 'https://unpkg.com/idb@5.0.3?module';
+import { openDB } from 'idb';
 
 async function setUpDatabase() {
   const db = await openDB('dewt', 1, {
@@ -735,3 +689,4 @@ function notifyUser(message, level) {
     }, 200);
   });
 }
+
