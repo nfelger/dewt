@@ -30,6 +30,10 @@ async function deleteTimebox(db, timeboxId) {
   await db.delete('timeboxes', Number(timeboxId));
 }
 
+const validationMessages = {
+  overlap: 'Timeboxes can\'t overlap. Try adjusting start / end times.'
+}
+
 async function validateTimebox(db, timebox) {
   const errors = [];
 
@@ -43,7 +47,9 @@ async function validateTimebox(db, timebox) {
       (timebox.startMinute >= tb.startMinute && timebox.startMinute < tb.endMinute) ||
       (timebox.endMinute >= tb.startMinute && timebox.endMinute < tb.endMinute)
     ) {
-      errors.push('Timeboxes can\'t overlap. Try adjusting start / end times.');
+      if (!errors.includes(validationMessages.overlap)) {
+        errors.push(validationMessages.overlap);
+      }
     }
   }
 
