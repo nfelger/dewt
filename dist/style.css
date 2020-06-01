@@ -31,8 +31,6 @@ form ul {
 }
 
 form li {
-  display: flex;
-  flex-direction: column;
   flex-basis: 0;
 }
 
@@ -46,7 +44,7 @@ form input {
 }
 
 form fieldset:last-of-type ul {
-  justify-content: end;
+  justify-content: space-between;
   align-items: center;
 }
 
@@ -65,11 +63,11 @@ button {
 }
 
 .theme-color-3 {
-  background-color: rgb(208, 244, 222);
+  background-color: rgb(255, 153, 200);
 }
 
 .theme-color-4 {
-  background-color: rgb(255, 153, 200);
+  background-color: rgb(208, 244, 222);
 }
 
 .theme-color-5 {
@@ -244,6 +242,15 @@ button {
 
 .timebox-edit li.theme-color {
   width: 3em;
+}
+
+.timebox-edit li.delete-timebox {
+  flex: 2;
+}
+
+.timebox-edit li.delete-timebox a {
+  font-size: 1rem;
+  color: red;  
 }
 
 .rule-major,

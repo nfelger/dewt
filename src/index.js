@@ -2,7 +2,7 @@ import { minutesToTimeStr, timeStrToMinutes, iso8601date, kebabToCamel } from '.
 import AgendaView from './agenda_view';
 import { validatesStartBeforeEnd } from './form_validations';
 import { dbPromise, addTestData } from './database';
-import { allTimeboxesOnDate, loadTimebox, createTimebox, updateTimebox } from './timebox_data';
+import { allTimeboxesOnDate, loadTimebox, createTimebox, updateTimebox, deleteTimebox } from './timebox_data';
 
 const calendarView = new AgendaView(document.querySelector('.agenda'), 14 * 60, 7 * 60);
 calendarView.draw();
@@ -166,16 +166,23 @@ async function openTimeboxEditModal(e) {
       </fieldset>
       <fieldset>
         <ul>
-          <li><a href="#">Cancel</a></li>
+          <li class="delete-timebox"><a href="#">Delete</a></li>
+          <li class="cancel"><a href="#">Cancel</a></li>
           <li><button type="submit">Save</button></li>
         </ul>
       </fieldset>
     </form>`);
-  modalBox.querySelector('a').addEventListener('click', e => {
+  modalBox.querySelector('.cancel a').addEventListener('click', e => {
     e.preventDefault();
     removeModalBox();
   });
-  modalBox.querySelector('button').addEventListener('click', submitEditTimebox);  // TODO: why not a submit handler on the form??
+  modalBox.querySelector('.delete-timebox a').addEventListener('click', async e => {
+    e.preventDefault();
+    await deleteTimebox(db, timeboxId);
+    removeModalBox();
+    timeboxElement.remove();
+  });
+  modalBox.querySelector('form').addEventListener('submit', submitEditTimebox);
   modalBox.addEventListener('click', e => e.stopPropagation());
 
   const form = modalBox.querySelector('form');

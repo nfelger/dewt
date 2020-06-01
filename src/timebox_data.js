@@ -26,6 +26,10 @@ async function updateTimebox(db, timeboxId, attributes) {
   return timebox;
 }
 
+async function deleteTimebox(db, timeboxId) {
+  await db.delete('timeboxes', Number(timeboxId));
+}
+
 async function validateTimebox(db, timebox) {
   const errors = [];
 
@@ -53,4 +57,4 @@ async function validateTimebox(db, timebox) {
   return errors === [];
 }
 
-export { allTimeboxesOnDate, loadTimebox, createTimebox, updateTimebox };
+export { allTimeboxesOnDate, loadTimebox, createTimebox, updateTimebox, deleteTimebox };
