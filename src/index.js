@@ -7,7 +7,9 @@ import { allTimeboxesOnDate, loadTimebox, createTimebox, updateTimebox } from '.
 const calendarView = new AgendaView(document.querySelector('.agenda'), 14 * 60, 7 * 60);
 calendarView.draw();
 
-dbPromise.then(addTestData);
+if (new URL(window.location.href).searchParams.get('test') === 'true') {
+  dbPromise.then(addTestData);
+}
 
 // Timebox UI
 
