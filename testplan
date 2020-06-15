@@ -1,16 +1,6 @@
-Load calendar for today
-- "NOT APPEAR" absent
+Load calendar for today with ?test=true
 - now-line shows at the correct minute
 - work hours should be 8h-18h
-- Click in agenda, but outside TB => draft opens,
-details focused
-- click outside draft => box moves, details focused
-- click inside draft => nothing happens
-- type in details, then click outside => nothing happens, but visual feedback
-- click (x) button => box closes
-- open draft box, hit [esc] => box closes
-- open draft box, hit [return] => nothing happens
-- open draft box overlapping with existing TB, type details, hit return => validation error
 - open draft box, type details, hit [enter] => box persists, storage has new TB
 - reload page => new TB is displayed
 - open draft box, click TB => edit modal opens, draft box closes
