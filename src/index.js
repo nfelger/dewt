@@ -1,20 +1,21 @@
-import { minutesToTimeStr, timeStrToMinutes, iso8601date, kebabToCamel } from './helpers';
 import AgendaView from './agenda_view';
-import { validatesStartBeforeEnd } from './form_validations';
+import DraftTimeboxModal from './draft_timebox_modal';
+import EditTimeboxModal from './edit_timebox_modal';
+import WorkhoursModalBox from './workhours_modal';
+import { timeStrToMinutes, iso8601date, kebabToCamel } from './helpers';
 import { dbPromise, addTestData } from './database';
 import { allTimeboxesOnDate, loadTimebox, createTimebox, updateTimebox, deleteTimebox } from './timebox_data';
 
-const calendarView = new AgendaView(document.querySelector('.agenda'), 14 * 60, 7 * 60);
+const calendarView = new AgendaView(document.querySelector('.agenda'), 16 * 60, 6 * 60);
 calendarView.draw();
+
+let modalBox;
 
 if (new URL(window.location.href).searchParams.get('test') === 'true') {
   dbPromise.then(addTestData);
 }
 
 // Timebox UI
-
-let modalBox;
-
 async function drawAllTimeboxes(db) {
   const timeboxes = await allTimeboxesOnDate(db, new Date());
 
@@ -54,143 +55,35 @@ function drawTimebox(timebox) {
 }
 
 function openDraftTimeboxModal(startMinute) {
+  if(modalBox && !modalBox.maybeRemove()) { return; }
+
   startMinute = startMinute - calendarView.dayStartsAtMin;
   const endMinute = startMinute + 45;
-
-  // Timebox outer container.
-  modalBox = document.createElement('article');
-  modalBox.classList.add('timebox', 'timebox-draft');
-  modalBox.style.setProperty('--start-minute', startMinute);
-  modalBox.style.setProperty('--end-minute', endMinute);
-  calendarView.agendaElement.appendChild(modalBox);
-
-  // Form.
-  const form = document.createElement('form');
-  form.addEventListener('submit', submitDraftTimebox);
-  modalBox.appendChild(form);
-
-  // Details input.
-  const details = document.createElement('textarea');
-  details.name = 'details';
-  details.placeholder = 'Work on something deeply';
-  // Prevent adding line breaks (incl. from copy&paste).
-  details.addEventListener('input', e => {
-    e.target.value = e.target.value.replace(/\n/g, '');
-  });
-  form.appendChild(details);
-  details.focus();
-
-  // Submit button.
-  const submitBtn = document.createElement('button');
-  submitBtn.type = 'submit';
-  // Wire hitting 'enter' in the textarea to clicking submit.
-  details.addEventListener('keydown', e => {
-    if (e.key == "Enter" && details.value !== "") {
-      form.requestSubmit();
-    }
-  });
-  form.appendChild(submitBtn);
-
-  // Abort (x) button.
-  const closeBtn = document.createElement('div');
-  closeBtn.className = 'closeBtn';
-  closeBtn.textContent = '×';
-  closeBtn.addEventListener('click', e => {
-    e.stopPropagation();  // Avoid opening a new timebox underneath.
-    removeModalBox();
-  });
-  modalBox.appendChild(closeBtn);
-
-  // Abort by hitting esc
-  modalBox.addEventListener('keydown', e => {
-    if (e.key == "Escape") {
-      removeModalBox();
-    }
-  });
-
-  // Stop clicks into the box from moving the box to a new time.
-  modalBox.addEventListener('click', e => e.stopPropagation());
+  modalBox = new DraftTimeboxModal(calendarView.agendaElement, startMinute, endMinute);
+  modalBox.constructor.element.querySelector('form').addEventListener('submit', submitDraftTimebox);
+  modalBox.constructor.element.querySelector('textarea').focus();
 }
 
 async function openTimeboxEditModal(e) {
   // Stop clicks from bubbling to the agenda.
   e.stopPropagation();
 
-  if(!maybeRemoveModalBox()) { return; }
+  if(modalBox && !modalBox.maybeRemove()) { return; }
 
   const timeboxElement = e.currentTarget;
   const timeboxId = timeboxElement.dataset.timeboxId;
 
   const db = await dbPromise;
   const timebox = await loadTimebox(db, timeboxId);
-  modalBox = document.createElement('div');
-  modalBox.className = 'timebox-edit';
-  modalBox.dataset.timeboxId = timeboxId;
-  modalBox.insertAdjacentHTML('beforeend', `
-    <form>
-      <fieldset>
-        <ul>
-          <li class="project">
-            <label for="project">Project</label>
-            <input type="text" name="project" value="${timebox.project || ""}">
-          </li>
-          <li class="details">
-            <label for="details">Details</label>
-            <input type="text" name="details" required value="${timebox.details}">
-          </li>
-        </ul>
-      </fieldset>
-      <fieldset>
-        <ul>
-          <li class="start-minute">
-            <label for="start-minute">Start</label>
-            <input type="text" name="start-minute" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minutesToTimeStr(timebox.startMinute)}">
-          </li>
-          <li class="end-minute">
-            <label for="end-minute">End</label>
-            <input type="text" name="end-minute" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minutesToTimeStr(timebox.endMinute)}">
-          </li>
-          <li class="date">
-            <label for="date">Date</label>
-            <input type="text" name="date" required pattern="\\d{4}-\\d{2}-\\d{2}" title="yyyy-mm-dd" value="${timebox.date}">
-          </li>
-        </ul>
-      </fieldset>
-      <fieldset>
-        <ul>
-          <li class="theme-color">
-            <label for="theme-color">Color</label>
-            <input type="text" name="theme-color" required pattern="[1-7]" title="any number from 1 to 7" value="${timebox.themeColor}">
-          </li>
-        </ul>
-      </fieldset>
-      <fieldset>
-        <ul>
-          <li class="delete-timebox"><a href="#">Delete</a></li>
-          <li class="cancel"><a href="#">Cancel</a></li>
-          <li><button type="submit">Save</button></li>
-        </ul>
-      </fieldset>
-    </form>`);
-  modalBox.querySelector('.cancel a').addEventListener('click', e => {
-    e.preventDefault();
-    removeModalBox();
-  });
-  modalBox.querySelector('.delete-timebox a').addEventListener('click', async e => {
+
+  modalBox = new EditTimeboxModal(timeboxElement, timeboxId, timebox);
+  modalBox.constructor.element.querySelector('.delete-timebox a').addEventListener('click', async e => {
     e.preventDefault();
     await deleteTimebox(db, timeboxId);
-    removeModalBox();
+    modalBox.remove();
     timeboxElement.remove();
   });
-  modalBox.querySelector('form').addEventListener('submit', submitEditTimebox);
-  modalBox.addEventListener('click', e => e.stopPropagation());
-
-  const form = modalBox.querySelector('form');
-  const [startElement, endElement] = form.querySelectorAll('input[name=start-minute], input[name=end-minute]');
-  startElement.addEventListener('input', validatesStartBeforeEnd(startElement, endElement));
-  endElement.addEventListener('input', validatesStartBeforeEnd(startElement, endElement));
-
-  timeboxElement.appendChild(modalBox);
+  modalBox.constructor.element.querySelector('form').addEventListener('submit', submitEditTimebox);
 }
 
 async function submitDraftTimebox(e) {
@@ -212,25 +105,25 @@ async function submitDraftTimebox(e) {
       details: details,
       themeColor: 1,
       date: iso8601date(new Date()),
-      startMinute: Number(modalBox.style.getPropertyValue('--start-minute')) + calendarView.dayStartsAtMin,
-      endMinute: Number(modalBox.style.getPropertyValue('--end-minute')) + calendarView.dayStartsAtMin
+      startMinute: Number(modalBox.constructor.element.style.getPropertyValue('--start-minute')) + calendarView.dayStartsAtMin,
+      endMinute: Number(modalBox.constructor.element.style.getPropertyValue('--end-minute')) + calendarView.dayStartsAtMin
     });
     drawTimebox(timebox);
-    removeModalBox();
+    modalBox.remove();
   } catch {
-    flashModalBox();
+    modalBox.flash();
   }
 }
 
 async function submitEditTimebox(e) {
   e.preventDefault();
 
-  const form = modalBox.querySelector('form');
+  const form = modalBox.constructor.element.querySelector('form');
   if (!form.reportValidity()) {
     return;
   }
 
-  const formControls = Array.from(modalBox.querySelectorAll('input'));
+  const formControls = Array.from(modalBox.constructor.element.querySelectorAll('input'));
   const dirtyControls = formControls.filter(c => c.value !== c.defaultValue);
 
   let changedValues = {};
@@ -251,14 +144,14 @@ async function submitEditTimebox(e) {
     changedValues[name] = value;
   }
 
-  const timeboxId = modalBox.dataset.timeboxId;
+  const timeboxId = modalBox.constructor.element.dataset.timeboxId;
   const db = await dbPromise;
   try {
     const timebox = await updateTimebox(db, timeboxId, changedValues);
     drawTimebox(timebox);
-    removeModalBox();
+    modalBox.remove();
   } catch {
-    flashModalBox();
+    modalBox.flash();
   }
 }
 
@@ -269,8 +162,6 @@ function setUpAgendaListeners(calendarView) {
   });
 
   calendarView.agendaElement.addEventListener('click', e => {
-    if(!maybeRemoveModalBox()) { return; }
-
     // Use the fact that 1min == 1px.
     const agendaOffset = calendarView.agendaElement.getBoundingClientRect().y;
     const mousePosition = mouseY;
@@ -285,49 +176,13 @@ setUpAgendaListeners(calendarView);
 
 // Work hours.
 async function openWorkHoursModal() {
-  if(!maybeRemoveModalBox()) { return; }
+  if(modalBox && !modalBox.maybeRemove()) { return; }
 
   const db = await dbPromise;
   const workhours = await loadWorkhours(db, iso8601date(new Date()));
-  modalBox = document.createElement('div');
-  modalBox.className = 'work-hours-modal';
-  modalBox.insertAdjacentHTML('beforeend', `
-    <p>Set your working hours:</p>
-    <form>
-      <fieldset>
-        <ul>
-          <li class="work-start">
-            <label for="start">Start</label>
-            <input type="text" name="start" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minutesToTimeStr(workhours.startMinute)}">
-          </li>
-          <li class="work-end">
-            <label for="end">End</label>
-            <input type="text" name="end" required pattern="(2[0-3]|[0-1]?\\d):[0-5]\\d" title="hh:mm (24h time)" value="${minutesToTimeStr(workhours.endMinute)}">
-          </li>
-        </ul>
-      </fieldset>
-      <fieldset>
-        <ul>
-          <li><a href="#">Cancel</a></li>
-          <li><button type="submit">Save</button></li>
-        </ul>
-      </fieldset>
-    </form>`);
-  calendarView.agendaElement.appendChild(modalBox);
-
-  modalBox.addEventListener('click', e => e.stopPropagation());
-
-  modalBox.querySelector('a').addEventListener('click', e => {
-    e.preventDefault();
-    removeModalBox();
-  });
-
-  const form = modalBox.querySelector('form');
-  form.addEventListener('submit', submitWorkHours);
-
-  const [startElement, endElement] = form.querySelectorAll('input[name=start], input[name=end]');
-  startElement.addEventListener('input', validatesStartBeforeEnd(startElement, endElement));
-  endElement.addEventListener('input', validatesStartBeforeEnd(startElement, endElement));
+  modalBox = new WorkhoursModalBox(calendarView.agendaElement, workhours.startMinute, workhours.endMinute);
+  modalBox.constructor.element.querySelector('form').addEventListener('submit', submitWorkHours);
+  modalBox.constructor.element.querySelector('input').focus();
 }
 
 async function submitWorkHours(e) {
@@ -341,7 +196,7 @@ async function submitWorkHours(e) {
   };
   const db = await dbPromise;
   await saveWorkhours(db, workhours);
-  removeModalBox();
+  modalBox.remove();
   drawWorkhours(db);
 }
 
@@ -383,50 +238,3 @@ function setUpSetWorkhoursListener() {
 }
 dbPromise.then(drawWorkhours);
 setUpSetWorkhoursListener();
-
-
-// Modal box handling.
-
-/**
- * Returns false if a box exists but couldn't be removed.
- */
-function maybeRemoveModalBox() {
-  if (!modalBox) { return true; }
-
-  if (isModalBoxPristine()) {
-    removeModalBox();
-    return true;
-  } else {
-    flashModalBox()
-    return false;
-  }
-}
-
-function removeModalBox() {
-  modalBox.remove();
-  modalBox = null;
-}
-
-function isModalBoxPristine() {
-  if (!modalBox) {
-    throw new Error('Cannot discard a non-existent modalBox.');
-  }
-
-  let formControls = [];
-  if (modalBox.classList.contains('timebox-draft')) {
-    formControls = [modalBox.querySelector('textarea')];
-  } else if (modalBox.classList.contains('timebox-edit')) {
-    formControls = Array.from(modalBox.querySelectorAll('input'));
-  }
-
-  return formControls.every(i => i.defaultValue === i.value);
-}
-
-function flashModalBox() {
-  modalBox.classList.add('box-flash');
-  setTimeout(() => {
-    if (modalBox) {  // User may have closed it already.
-      modalBox.classList.remove('box-flash');
-    }
-  }, 800);
-}
