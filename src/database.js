@@ -1,4 +1,4 @@
-import { openDB } from 'idb';
+import { openDB, deleteDB } from 'idb';
 import { iso8601date } from './helpers';
 
 async function setUpDatabase() {
@@ -44,23 +44,23 @@ async function addTestData(db) {
       id: 2
     },
     {
-      project: null,
-      details: 'Email',
-      themeColor: 1,
-      date: todayStr,
-      startMinute: 12*60 + 45,
-      endMinute: 15*60,
-      id: 3
-    },
-    {
       project: 'I SHOULD',
       details: 'NOT APPEAR',
       themeColor: 3,
       date: tomorrowStr,
       startMinute: 9*60,
       endMinute: 15*60,
+      id: 3
+    },
+    {
+      project: null,
+      details: 'Email',
+      themeColor: 1,
+      date: todayStr,
+      startMinute: 12*60 + 45,
+      endMinute: 15*60,
       id: 4
-    }
+    },
   ];
 
   for (let item of testData) {
@@ -71,6 +71,14 @@ async function addTestData(db) {
   }
 }
 
+async function wipeAllDataAndReAddTestData(db) {
+  db.close();
+  await deleteDB('dewt');
+  db = await setUpDatabase();
+  await addTestData(db);
+  return db
+}
+
 const dbPromise = setUpDatabase();
 
-export { dbPromise, addTestData };
+export { dbPromise, addTestData, wipeAllDataAndReAddTestData };

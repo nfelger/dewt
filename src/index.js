@@ -3,7 +3,7 @@ import DraftTimeboxModal from './draft_timebox_modal';
 import EditTimeboxModal from './edit_timebox_modal';
 import WorkhoursModalBox from './workhours_modal';
 import { timeStrToMinutes, iso8601date, kebabToCamel } from './helpers';
-import { dbPromise, addTestData } from './database';
+import { dbPromise, addTestData, wipeAllDataAndReAddTestData } from './database';
 import { allTimeboxesOnDate, loadTimebox, createTimebox, updateTimebox, deleteTimebox } from './timebox_data';
 
 const calendarView = new AgendaView(document.querySelector('.agenda'), 16 * 60, 6 * 60);
@@ -11,8 +11,22 @@ calendarView.draw();
 
 let modalBox;
 
-if (new URL(window.location.href).searchParams.get('test') === 'true') {
-  dbPromise.then(addTestData);
+let url = new URL(window.location.href);
+if (url.searchParams.get('wipeDbAndSeedTestData') !== null) {
+  dbPromise
+    .then(wipeAllDataAndReAddTestData)
+    .then(() => {
+      url.searchParams.delete('wipeDbAndSeedTestData');
+      window.location.href = url.href;
+    });
+}
+if (url.searchParams.get('addTestData') !== null) {
+  dbPromise
+    .then(addTestData)
+    .then(() => {
+      url.searchParams.delete('addTestData');
+      window.location.href = url.href;
+    });
 }
 
 // Timebox UI
