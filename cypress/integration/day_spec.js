@@ -101,4 +101,12 @@ describe('The day view', () => {
     cy.get('.notifications p')
       .should('have.length', 1)
   })
+
+  it('defaults to workhours 8:00 to 18:00', () => {
+    cy.visit('/')
+
+    cy.get('.work-hours')
+    .should('have.css', 'grid-row-start', '120')
+    .should('have.css', 'grid-row-end', '720')
+  })
 })

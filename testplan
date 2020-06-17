@@ -1,6 +1,5 @@
 Load calendar for today with ?test=true
 - now-line shows at the correct minute
-- work hours should be 8h-18h
 - open draft box, type details, hit [enter] => box persists, storage has new TB
 - reload page => new TB is displayed
 - open draft box, click TB => edit modal opens, draft box closes
