@@ -18,14 +18,12 @@ export default class DraftTimeboxModal extends ModalBox {
 
     const details = el.querySelector('textarea');
 
-    // Prevent adding line breaks (incl. from copy&paste).
-    details.addEventListener('input', e => {
-      e.target.value = e.target.value.replace(/\n/g, '');
-    });
+    // Wire adding line breaks (from hitting enter but also from copy&paste) to a form submit.
+    details.addEventListener('input', () => {
+      const endsInNewline = details.value.slice(-1) === '\n';
+      details.value = details.value.replace(/\n/g, '');
 
-    // Wire hitting 'enter' in the textarea to clicking submit.
-    details.addEventListener('keydown', e => {
-      if (e.key == "Enter" && details.value !== "") {
+      if (details.value !== "" && endsInNewline) {
         el.querySelector('form').requestSubmit();
       }
     });
