@@ -31,91 +31,100 @@ describe('The day view', () => {
       .contains('Aufsatz zur Verwandlung von Pangolinen')
   })
 
-  it('should allow opening and moving draft TBs by clicking the agenda', () => {
-    // Clicking outside an existing timebox should open a draft and focus its textarea
-    cy.get('.agenda')
-      .click(...coords.outsideExistingTb)
+  describe('adding TBs', () => {
+    after(reset)
 
-    cy.get('.timebox-draft textarea')
-      .should('have.focus')
+    it('should allow opening and moving draft TBs by clicking the agenda', () => {
+      // Clicking outside an existing timebox should open a draft and focus its textarea
+      cy.get('.agenda')
+        .click(...coords.outsideExistingTb)
 
-    // Clicking elsewhere (also outside existing timebox) should move the box
-    cy.get('.agenda')
-      .click(...coords.outsideExistingTbPlusHalfHour)
+      cy.get('.timebox-draft textarea')
+        .should('have.focus')
 
-    cy.get('.timebox-draft')
-      .should('exist')
-      .invoke('position')
-      .its('top')
-      .should('eq', coords.outsideExistingTbPlusHalfHour[1])
+      // Clicking elsewhere (also outside existing timebox) should move the box
+      cy.get('.agenda')
+        .click(...coords.outsideExistingTbPlusHalfHour)
 
-    cy.get('.timebox-draft textarea')
-      .should('have.focus')
+      cy.get('.timebox-draft')
+        .should('exist')
+        .invoke('position')
+        .its('top')
+        .should('eq', coords.outsideExistingTbPlusHalfHour[1])
 
-    // Clicking inside the draft timebox should do nothing
-    cy.get('.timebox-draft')
-      .click()
-      .invoke('position')
-      .its('top')
-      .should('eq', coords.outsideExistingTbPlusHalfHour[1])
+      cy.get('.timebox-draft textarea')
+        .should('have.focus')
 
-    // Editing the timebox, then clicking outside should flash the box
-    cy.get('.timebox-draft textarea')
-      .type('deeeeeep work')
+      // Clicking inside the draft timebox should do nothing
+      cy.get('.timebox-draft')
+        .click()
+        .invoke('position')
+        .its('top')
+        .should('eq', coords.outsideExistingTbPlusHalfHour[1])
 
-    cy.get('.agenda')
-      .click(...coords.outsideExistingTb)
+      // Editing the timebox, then clicking outside should flash the box
+      cy.get('.timebox-draft textarea')
+        .type('deeeeeep work')
 
-    cy.get('.timebox-draft')
-      .should('have.class', 'box-flash')
+      cy.get('.agenda')
+        .click(...coords.outsideExistingTb)
 
-    // Clicking (x) should close the box
-    cy.get('.timebox-draft .closeBtn')
-      .click()
+      cy.get('.timebox-draft')
+        .should('have.class', 'box-flash')
 
-    cy.get('.timebox-draft')
-      .should('not.exist')
+      // Clicking (x) should close the box
+      cy.get('.timebox-draft .closeBtn')
+        .click()
 
-    // Hitting [esc] should close the box
-    cy.get('.agenda')
-      .click(...coords.outsideExistingTb)
+      cy.get('.timebox-draft')
+        .should('not.exist')
 
-    cy.get('.timebox-draft textarea')
-      .type('deeeeeep work{esc}')
+      // Hitting [esc] should close the box
+      cy.get('.agenda')
+        .click(...coords.outsideExistingTb)
 
-    cy.get('.timebox-draft')
-      .should('not.exist')
+      cy.get('.timebox-draft textarea')
+        .type('deeeeeep work{esc}')
 
-    // Hitting [return] in an empty box should do nothing
-    cy.get('.agenda')
-      .click(...coords.outsideExistingTb)
+      cy.get('.timebox-draft')
+        .should('not.exist')
 
-    cy.get('.timebox-draft textarea')
-      .type('{enter}')
+      // Hitting [return] in an empty box should do nothing
+      cy.get('.agenda')
+        .click(...coords.outsideExistingTb)
 
-    cy.get('.timebox-draft')
-      .should('exist')
+      cy.get('.timebox-draft textarea')
+        .type('{enter}')
 
-    // Trying to add a TB over an existing one should fail
-    cy.get('.agenda')
-      .click(...coords.overlappingExistingTbButOutsideBox)
+      cy.get('.timebox-draft')
+        .should('exist')
 
-    cy.get('.timebox-draft')
-      .should('exist')
-      .find('textarea')
-      .type('deeeeeep work{enter}')
+      // Trying to add a TB over an existing one should fail
+      cy.get('.agenda')
+        .click(...coords.overlappingExistingTbButOutsideBox)
 
-    cy.get('.timebox-draft')
-      .should('have.class', 'box-flash')
+      cy.get('.timebox-draft')
+        .should('exist')
+        .find('textarea')
+        .type('deeeeeep work{enter}')
 
-    cy.get('.notifications p')
-      .should('have.length', 1)
-  })
+      cy.get('.timebox-draft')
+        .should('have.class', 'box-flash')
 
-  it('defaults to workhours 8:00 to 18:00', () => {
-    cy.get('.work-hours')
-      .should('have.css', 'grid-row-start', '120')
-      .should('have.css', 'grid-row-end', '720')
+      cy.get('.notifications p')
+        .should('have.length', 1)
+    })
+
+    it('should allow adding a TB', () => {
+      cy.get('.agenda')
+        .click(...coords.outsideExistingTb)
+
+      cy.get('.timebox-draft textarea')
+        .type('deeeeeep work{enter}')
+
+      cy.get('article h4')
+        .contains('deeeeeep work')
+    })
   })
 
   describe('editing TBs', () => {
@@ -300,6 +309,35 @@ describe('The day view', () => {
       cy.get('article')
         .contains('Pangolin')
         .should('not.exist')
+    })
+  })
+
+  describe('work hours', () => {
+    it('should default to 8:00 – 18:00', () => {
+      cy.get('.work-hours')
+        .should('have.css', 'grid-row-start', '120')
+        .should('have.css', 'grid-row-end', '720')
+    })
+
+    it('should allow changing the hours', () => {
+      // Open the work hours modal.
+      cy.get('.agenda')
+        .contains('Set work hours')
+        .click()
+
+      // Change values.
+      cy.get('.work-hours-modal [name=start]').clear().type('11:00')
+      cy.get('.work-hours-modal [name=end]').clear().type('22:00')
+
+      // Submit.
+      cy.get('.work-hours-modal')
+        .contains('Save')
+        .click()
+
+      // Work hours overlay should change.
+      cy.get('.work-hours')
+        .should('have.css', 'grid-row-start', '300')
+        .should('have.css', 'grid-row-end', '960')
     })
   })
 })
