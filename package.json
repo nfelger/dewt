@@ -7,7 +7,9 @@
   "scripts": {
     "test": "jest",
     "build": "webpack",
-    "build-watch": "webpack --watch"
+    "build:watch": "webpack --watch",
+    "build:debug": "webpack --devtool eval-source-map",
+    "cypress:open": "cypress open"
   },
   "dependencies": {
     "babel-loader": "^8.1.0",
