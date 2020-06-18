@@ -8,40 +8,34 @@ export default class DraftTimeboxModal extends ModalBox {
     el.style.setProperty('--start-minute', startMinute);
     el.style.setProperty('--end-minute', endMinute);
 
-    // Form.
-    const form = document.createElement('form');
-    el.appendChild(form);
+    el.insertAdjacentHTML('beforeend', `
+      <form action="">
+        <textarea name="details" placeholder="Work on something deeply"></textarea>
+        <button type="submit"></button>
+      </form>
+      <div class="closeBtn">×</div>
+    `);
 
-    // Details input.
-    const details = document.createElement('textarea');
-    details.name = 'details';
-    details.placeholder = 'Work on something deeply';
+    const details = el.querySelector('textarea');
+
     // Prevent adding line breaks (incl. from copy&paste).
     details.addEventListener('input', e => {
       e.target.value = e.target.value.replace(/\n/g, '');
     });
-    form.appendChild(details);
 
-    // Submit button.
-    const submitBtn = document.createElement('button');
-    submitBtn.type = 'submit';
     // Wire hitting 'enter' in the textarea to clicking submit.
     details.addEventListener('keydown', e => {
       if (e.key == "Enter" && details.value !== "") {
-        form.requestSubmit();
+        el.querySelector('form').requestSubmit();
       }
     });
-    form.appendChild(submitBtn);
 
-    // Abort (x) button.
-    const closeBtn = document.createElement('div');
-    closeBtn.className = 'closeBtn';
-    closeBtn.textContent = '×';
+    // Abort button (x).
+    const closeBtn = el.querySelector('.closeBtn');
     closeBtn.addEventListener('click', e => {
       e.stopPropagation();  // Avoid opening a new timebox underneath.
       this.remove();
     });
-    el.appendChild(closeBtn);
 
     // Abort by hitting esc
     el.addEventListener('keydown', e => {

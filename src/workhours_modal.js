@@ -8,7 +8,7 @@ export default class WorkhoursModalBox extends ModalBox {
     el.className = 'work-hours-modal';
     el.insertAdjacentHTML('beforeend', `
       <p>Set your working hours:</p>
-      <form>
+      <form action="">
         <fieldset>
           <ul>
             <li class="work-start">

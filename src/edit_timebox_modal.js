@@ -8,7 +8,7 @@ export default class EditTimeboxModal extends ModalBox {
     el.className = 'timebox-edit';
     el.dataset.timeboxId = timeboxId;
     el.insertAdjacentHTML('beforeend', `
-      <form>
+      <form action="">
         <fieldset>
           <ul>
             <li class="project">
