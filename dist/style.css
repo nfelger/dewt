@@ -250,7 +250,7 @@ button {
 
 .timebox-edit li.delete-timebox a {
   font-size: 1rem;
-  color: red;  
+  color: red;
 }
 
 .rule-major,
@@ -273,7 +273,6 @@ button {
 .rule-now {
   position: relative;
   border-top: 2px solid #FF6550;
-  z-index: 1;
   opacity: 80%;
 }
 
