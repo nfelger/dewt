@@ -19,7 +19,7 @@ export default class AgendaView {
     this.agendaElement = agendaElement;
     this.totalMinutes = totalMinutes;
     this.dayStartsAtMin = dayStartsAtMin;
-    this.dateStr = parseCalendarDateFromLocation();
+    this.date = parseCalendarDateFromLocation();
   }
 
   draw() {
@@ -38,10 +38,10 @@ export default class AgendaView {
   _drawCalendarDate() {
     const dateFmtOptions = { month: 'short', weekday: 'short' };
     const [weekday, month] = new Intl.DateTimeFormat('en-US', dateFmtOptions)
-      .formatToParts(this.dateStr)
+      .formatToParts(this.date)
       .filter(({ type }) => Object.keys(dateFmtOptions).includes(type))
       .map(({ value }) => value);
-    const date = this.dateStr.getDate();
+    const date = this.date.getDate();
 
     const dayElements = document.querySelectorAll('.day p');
     dayElements[0].textContent = weekday;

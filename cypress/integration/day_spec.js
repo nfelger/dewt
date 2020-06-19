@@ -125,6 +125,26 @@ describe('The day view', () => {
       cy.get('article h4')
         .contains('deeeeeep work')
     })
+
+    it('should use date of the current view for the TB', () => {
+      cy.visit('/?date=2020-01-01')
+
+      // Add a timebox.
+      cy.get('.agenda')
+        .click(0, 300)  // Time doesn't matter for this test...
+
+      cy.get('.timebox-draft textarea')
+        .type('deeeeeep work{enter}')
+
+      // It should show on the current view.
+      cy.get('article h4')
+        .contains('deeeeeep work')
+        .click()
+
+      // And it should have the correct date.
+      cy.get('.timebox-edit [name=date]')
+        .should('have.value', '2020-01-01')
+    })
   })
 
   describe('editing TBs', () => {

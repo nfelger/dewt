@@ -1,8 +1,7 @@
-import { iso8601date } from "./helpers";
 import { notifyUser, notificationLevel } from "./notify";
 
-async function allTimeboxesOnDate(db, date) {
-  return await db.getAllFromIndex('timeboxes', 'date', iso8601date(date));
+async function allTimeboxesOnDate(db, dateStr) {
+  return await db.getAllFromIndex('timeboxes', 'date', dateStr);
 }
 
 async function loadTimebox(db, id) {
@@ -37,7 +36,7 @@ const validationMessages = {
 async function validateTimebox(db, timebox) {
   const errors = [];
 
-  const allTimeboxes = await allTimeboxesOnDate(db, new Date());
+  const allTimeboxes = await allTimeboxesOnDate(db, timebox.date);
   for (let tb of allTimeboxes) {
     // Don't compare to self.
     if (tb.id === timebox.id) { continue; }

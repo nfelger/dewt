@@ -31,7 +31,7 @@ if (url.searchParams.get('addTestData') !== null) {
 
 // Timebox UI
 async function drawAllTimeboxes(db) {
-  const timeboxes = await allTimeboxesOnDate(db, new Date());
+  const timeboxes = await allTimeboxesOnDate(db, iso8601date(calendarView.date));
 
   for (let timebox of timeboxes) {
     drawTimebox(timebox);
@@ -44,7 +44,7 @@ function drawTimebox(timebox) {
     existingTimebox.remove();
   }
 
-  if (timebox.date !== iso8601date(new Date())) {
+  if (timebox.date !== iso8601date(calendarView.date)) {
     return;
   }
 
@@ -118,7 +118,7 @@ async function submitDraftTimebox(e) {
       project: project,
       details: details,
       themeColor: 1,
-      date: iso8601date(new Date()),
+      date: iso8601date(calendarView.date),
       startMinute: Number(modalBox.constructor.element.style.getPropertyValue('--start-minute')) + calendarView.dayStartsAtMin,
       endMinute: Number(modalBox.constructor.element.style.getPropertyValue('--end-minute')) + calendarView.dayStartsAtMin
     });
@@ -193,7 +193,7 @@ async function openWorkHoursModal() {
   if(modalBox && !modalBox.maybeRemove()) { return; }
 
   const db = await dbPromise;
-  const workhours = await loadWorkhours(db, iso8601date(new Date()));
+  const workhours = await loadWorkhours(db, iso8601date(calendarView.date));
   modalBox = new WorkhoursModalBox(calendarView.agendaElement, workhours.startMinute, workhours.endMinute);
   modalBox.constructor.element.querySelector('form').addEventListener('submit', submitWorkHours);
   modalBox.constructor.element.querySelector('input').focus();
@@ -204,7 +204,7 @@ async function submitWorkHours(e) {
 
   const formData = new FormData(e.target);
   const workhours = {
-    date: iso8601date(new Date()),
+    date: iso8601date(calendarView.date),
     startMinute: timeStrToMinutes(formData.get('start')),
     endMinute: timeStrToMinutes(formData.get('end'))
   };
@@ -235,7 +235,7 @@ async function loadWorkhours(db, date) {
 }
 
 async function drawWorkhours(db) {
-  const workhours = await loadWorkhours(db, iso8601date(new Date()));
+  const workhours = await loadWorkhours(db, iso8601date(calendarView.date));
 
   const workhoursElement = document.querySelector('.work-hours');
   workhoursElement.style.setProperty('--start-minute', workhours.startMinute - calendarView.dayStartsAtMin);
