@@ -44,7 +44,10 @@ function drawTimebox(timebox) {
     existingTimebox.remove();
   }
 
-  if (timebox.date !== iso8601date(calendarView.date)) {
+  if (timebox.date !== iso8601date(calendarView.date)
+    || timebox.startMinute < calendarView.dayStartsAtMin
+    || timebox.endMinute > calendarView.dayStartsAtMin + calendarView.totalMinutes
+  ) {
     return;
   }
 
