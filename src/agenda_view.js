@@ -50,6 +50,8 @@ export default class AgendaView {
   }
 
   _drawHours() {
+    const container = document.querySelector('.hours');
+
     const firstFullHour = 60 - this.dayStartsAtMin % 60;
 
     for (let min = firstFullHour; min < this.totalMinutes; min += 60) {
@@ -63,7 +65,7 @@ export default class AgendaView {
       minute.textContent = '00';
       hour.appendChild(minute);
 
-      this.agendaElement.appendChild(hour);
+      container.append(hour);
     }
   }
 
@@ -85,9 +87,10 @@ export default class AgendaView {
   }
 
   _drawNowRule() {
+    const container = document.querySelector('.agenda-backdrop');
     const nowRule = document.createElement('div');
     nowRule.className = 'rule-now';
-    this.agendaElement.appendChild(nowRule);
+    container.appendChild(nowRule);
 
     const dayStartsAtMin = this.dayStartsAtMin;
     const totalMinutes = this.totalMinutes;
@@ -108,11 +111,12 @@ export default class AgendaView {
   }
 
   _drawLinesEvery60Min(className, firstLineAfter) {
+    const container = document.querySelector('.agenda-backdrop');
     for (let min = firstLineAfter; min < this.totalMinutes; min += 60) {
       const line = document.createElement('div');
       line.className = className;
       line.style.setProperty('--start-minute', min);
-      this.agendaElement.appendChild(line);
+      container.appendChild(line);
     }
   }
 }

@@ -68,7 +68,7 @@ function drawTimebox(timebox) {
 
   timeboxElement.addEventListener('click', openTimeboxEditModal);
 
-  calendarView.agendaElement.appendChild(timeboxElement);
+  document.querySelector('.timeboxes').appendChild(timeboxElement);
 }
 
 function openDraftTimeboxModal(startMinute) {
@@ -76,7 +76,7 @@ function openDraftTimeboxModal(startMinute) {
 
   startMinute = startMinute - calendarView.dayStartsAtMin;
   const endMinute = startMinute + 45;
-  modalBox = new DraftTimeboxModal(calendarView.agendaElement, startMinute, endMinute);
+  modalBox = new DraftTimeboxModal(document.querySelector('.timeboxes'), startMinute, endMinute);
   modalBox.constructor.element.querySelector('form').addEventListener('submit', submitDraftTimebox);
   modalBox.constructor.element.querySelector('textarea').focus();
 }
@@ -197,7 +197,7 @@ async function openWorkHoursModal() {
 
   const db = await dbPromise;
   const workhours = await loadWorkhours(db, iso8601date(calendarView.date));
-  modalBox = new WorkhoursModalBox(calendarView.agendaElement, workhours.startMinute, workhours.endMinute);
+  modalBox = new WorkhoursModalBox(document.querySelector('.agenda .main'), workhours.startMinute, workhours.endMinute);
   modalBox.constructor.element.querySelector('form').addEventListener('submit', submitWorkHours);
   modalBox.constructor.element.querySelector('input').focus();
 }
@@ -243,7 +243,6 @@ async function drawWorkhours(db) {
   const workhoursElement = document.querySelector('.work-hours');
   workhoursElement.style.setProperty('--start-minute', workhours.startMinute - calendarView.dayStartsAtMin);
   workhoursElement.style.setProperty('--end-minute', workhours.endMinute - calendarView.dayStartsAtMin);
-  calendarView.agendaElement.appendChild(workhoursElement);
 }
 
 function setUpSetWorkhoursListener() {

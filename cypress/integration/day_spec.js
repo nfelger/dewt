@@ -335,8 +335,8 @@ describe('The day view', () => {
   describe('work hours', () => {
     it('should default to 8:00 – 18:00', () => {
       cy.get('.work-hours')
-        .should('have.css', 'grid-row-start', '120')
-        .should('have.css', 'grid-row-end', '720')
+        .should('have.css', 'grid-row-start', '121')
+        .should('have.css', 'grid-row-end', '721')
     })
 
     it('should allow changing the hours', () => {
@@ -356,8 +356,8 @@ describe('The day view', () => {
 
       // Work hours overlay should change.
       cy.get('.work-hours')
-        .should('have.css', 'grid-row-start', '300')
-        .should('have.css', 'grid-row-end', '960')
+        .should('have.css', 'grid-row-start', '301')
+        .should('have.css', 'grid-row-end', '961')
     })
   })
 })
