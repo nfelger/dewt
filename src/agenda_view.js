@@ -1,122 +1,121 @@
-function parseCalendarDateFromLocation() {
-  const location = new URL(window.location.href);
-  const dateStr = location.searchParams.get('date');
+import React from 'react';
 
-  if (dateStr === null) {
-    return new Date();
-  } else if (dateStr.match(/\d{4}-\d{2}-\d{2}/)) {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    return new Date(year, month - 1, day);
-  } else {
-    document.querySelector('body').innerHTML = '<h1>Page not found</h1><p>You really shouldn\'t be here…</p>';
-    throw Error(`Malformed date! ${dateStr}`);
+class DayWidget extends React.Component {
+  constructor(props) {
+    super(props);
+
+    const dateFmtOptions = { month: 'short', weekday: 'short' };
+    [this.weekday, this.month] = new Intl.DateTimeFormat('en-US', dateFmtOptions)
+      .formatToParts(this.props.date)
+      .filter(({ type }) => Object.keys(dateFmtOptions).includes(type))
+      .map(({ value }) => value);
+
+    this.dayNum = this.props.date.getDate();
+  }
+
+  render() {
+    return (
+      <div className="day">
+        <p>{this.weekday}</p>
+        <p className="day-number">{this.dayNum}</p>
+        <p>{this.month}</p>
+      </div>
+    )
   }
 }
 
+class NowRule extends React.Component {
+  constructor(props) {
+    super(props);
 
-export default class AgendaView {
-  constructor(agendaElement, totalMinutes, dayStartsAtMin) {
-    this.agendaElement = agendaElement;
-    this.totalMinutes = totalMinutes;
-    this.dayStartsAtMin = dayStartsAtMin;
-    this.date = parseCalendarDateFromLocation();
+    this.state = {currentMinute: 0};
   }
 
-  draw() {
-    this._setTotalMinutesOnAgendaElement();
-    this._drawCalendarDate();
-    this._drawHours();
-    this._drawMajorLines();
-    this._drawMinorLines();
-    this._drawNowRule();
+  componentDidMount() {
+    const now = new Date();
+    this.setState({currentMinute: now.getHours() * 60 + now.getMinutes() - this.props.offset});
+
+    this.timeout = setTimeout(() => {
+      const now = new Date();
+      this.setState({currentMinute: now.getHours() * 60 + now.getMinutes() - this.props.offset});
+
+    }, 60000);
   }
 
-  _setTotalMinutesOnAgendaElement() {
-    this.agendaElement.style.setProperty('--total-minutes', this.totalMinutes);
+  componentWillUnmount() {
+    clearTimeout(this.timeout);
   }
 
-  _drawCalendarDate() {
-    const dateFmtOptions = { month: 'short', weekday: 'short' };
-    const [weekday, month] = new Intl.DateTimeFormat('en-US', dateFmtOptions)
-      .formatToParts(this.date)
-      .filter(({ type }) => Object.keys(dateFmtOptions).includes(type))
-      .map(({ value }) => value);
-    const date = this.date.getDate();
+  render() {
+    if (this.state.currentMinute >= this.props.maxMinute) { return null; }
 
-    const dayElements = document.querySelectorAll('.day p');
-    dayElements[0].textContent = weekday;
-    dayElements[1].textContent = date;
-    dayElements[2].textContent = month;
+    return <div className='rule-now' style={{'--start-minute': this.state.currentMinute}}/>;
   }
+}
 
-  _drawHours() {
-    const container = document.querySelector('.hours');
-
-    const firstFullHour = 60 - this.dayStartsAtMin % 60;
-
-    for (let min = firstFullHour; min < this.totalMinutes; min += 60) {
-      const hour = document.createElement('h3');
-      hour.className = 'time-hint';
-      hour.style.setProperty('--start-minute', min);
-      hour.style.setProperty('--end-minute', min + 59);
-      hour.textContent = (this.dayStartsAtMin + min) / 60;
-
-      const minute = document.createElement('sup');
-      minute.textContent = '00';
-      hour.appendChild(minute);
-
-      container.append(hour);
+export default class AgendaView extends React.Component {
+  _renderHours() {
+    let hours = [];
+    const firstFullHour = 60 - this.props.dayStartsAtMin % 60;
+    for (let min = firstFullHour; min < this.props.totalMinutes; min += 60) {
+      hours.push(
+        <h3 className='time-hint'
+            style={{'--start-minute': min, '--end-minute': min + 59}}
+            key={min}>
+          {(this.props.dayStartsAtMin + min) / 60}
+          <sup>00</sup>
+        </h3>)
     }
+    return hours;
   }
 
-  _drawMajorLines() {
-    const firstLineAfter = 60 - this.dayStartsAtMin % 60;
-    this._drawLinesEvery60Min('rule-major', firstLineAfter);
+  _renderLinesEvery60Min(className, firstLineAfter) {
+    let lines = [];
+    for (let min = firstLineAfter; min < this.props.totalMinutes; min += 60) {
+      lines.push(<div className={className} style={{'--start-minute': min}} key={min} />);
+    }
+    return lines;
   }
 
-  _drawMinorLines() {
+  _renderMajorLines() {
+    const firstLineAfter = 60 - this.props.dayStartsAtMin % 60;
+    return this._renderLinesEvery60Min('rule-major', firstLineAfter);
+  }
+
+  _renderMinorLines() {
     let firstLineAfter;
 
-    if (this.dayStartsAtMin % 60 < 30) {
-      firstLineAfter = 30 - this.dayStartsAtMin % 30;
+    if (this.props.dayStartsAtMin % 60 < 30) {
+      firstLineAfter = 30 - this.props.dayStartsAtMin % 30;
     } else {
-      firstLineAfter = 60 - (this.dayStartsAtMin - 30) % 60;
+      firstLineAfter = 60 - (this.props.dayStartsAtMin - 30) % 60;
     }
 
-    this._drawLinesEvery60Min('rule-minor', firstLineAfter);
+    return this._renderLinesEvery60Min('rule-minor', firstLineAfter);
   }
 
-  _drawNowRule() {
-    const container = document.querySelector('.agenda-backdrop');
-    const nowRule = document.createElement('div');
-    nowRule.className = 'rule-now';
-    container.appendChild(nowRule);
-
-    const dayStartsAtMin = this.dayStartsAtMin;
-    const totalMinutes = this.totalMinutes;
-    function updateNowRulePosition() {
-      const now = new Date();
-      const nowInMinutes = now.getHours() * 60 + now.getMinutes() - dayStartsAtMin;
-
-      if (nowInMinutes >= totalMinutes) {
-        nowRule.remove();
-        return;
-      }
-
-      nowRule.style.setProperty('--start-minute', nowInMinutes);
-
-      setTimeout(updateNowRulePosition, 60000);
-    }
-    updateNowRulePosition();
-  }
-
-  _drawLinesEvery60Min(className, firstLineAfter) {
-    const container = document.querySelector('.agenda-backdrop');
-    for (let min = firstLineAfter; min < this.totalMinutes; min += 60) {
-      const line = document.createElement('div');
-      line.className = className;
-      line.style.setProperty('--start-minute', min);
-      container.appendChild(line);
-    }
+  render() {
+    return (
+      <div className='agenda' style={{'--total-minutes': this.props.totalMinutes}} >
+        <div className="left">
+          <div className="hours">
+            {this._renderHours()}
+          </div>
+          <DayWidget date={this.props.date} />
+        </div>
+        <div className="main">
+          <div className="set-work-hours">
+            <a href="#" onClick={this.props.setWorkhoursHandler}>Set work hours</a>
+          </div>
+          <div className="agenda-backdrop">
+            <div className="work-hours"></div>
+            {this._renderMajorLines()}
+            {this._renderMinorLines()}
+            <NowRule maxMinute={this.props.totalMinutes}
+                     offset={this.props.dayStartsAtMin} />
+          </div>
+          <div className="timeboxes"></div>
+        </div>
+      </div>)
   }
 }
