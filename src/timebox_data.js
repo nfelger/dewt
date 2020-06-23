@@ -1,4 +1,13 @@
-import { notifyUser, notificationLevel } from "./notify";
+class ValidationError extends Error {
+  constructor(errors) {
+    super('Timebox validation failed.');
+    this.errors = errors;
+  }
+
+  toString() {
+    return super.toString() + ' Errors: ' + this.errors;
+  }
+}
 
 async function allTimeboxesOnDate(db, dateStr) {
   return await db.getAllFromIndex('timeboxes', 'date', dateStr);
@@ -53,13 +62,10 @@ async function validateTimebox(db, timebox) {
   }
 
   if (errors.length > 0) {
-    for (let error of errors) {
-      notifyUser(error, notificationLevel.error);
-    }
-    throw new Error('Timebox validation failed.');
+    throw new ValidationError(errors);
+  } else {
+    return true;
   }
-
-  return errors === [];
 }
 
-export { allTimeboxesOnDate, loadTimebox, createTimebox, updateTimebox, deleteTimebox };
+export { ValidationError, allTimeboxesOnDate, loadTimebox, createTimebox, updateTimebox, deleteTimebox };

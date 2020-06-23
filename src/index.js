@@ -7,7 +7,7 @@ import EditTimeboxModal from './edit_timebox_modal';
 import WorkhoursModalBox from './workhours_modal';
 import { timeStrToMinutes, iso8601date, kebabToCamel } from './helpers';
 import { dbPromise, addTestData, wipeAllDataAndReAddTestData } from './database';
-import { allTimeboxesOnDate, loadTimebox, createTimebox, updateTimebox, deleteTimebox } from './timebox_data';
+import { ValidationError, allTimeboxesOnDate, loadTimebox, createTimebox, updateTimebox, deleteTimebox } from './timebox_data';
 
 function parseCalendarDateFromLocation() {
   const location = new URL(window.location.href);
@@ -43,21 +43,149 @@ if (url.searchParams.get('wipeDbAndSeedTestData') !== null) {
     });
 }
 
+class Notifications extends React.Component {
+  constructor(props) {
+    super(props);
+
+    this.clickHandler = this.clickHandler.bind(this);
+
+    this.state = { hidden: new Set() };
+  }
+
+  clickHandler(key, e) {
+    e.stopPropagation();
+
+    this.setState(state => {
+      const hidden = new Set(state.hidden);
+      hidden.add(key);
+      return { hidden };
+    });
+
+    setTimeout(() => {
+      this.props.removeNotification(key);
+      this.setState(state => {
+        const hidden = new Set(state.hidden);
+        hidden.delete(key);
+        return { hidden };
+      });
+    }, 200);
+  }
+
+  render() {
+    const className = (key, level) => {
+      if (this.state.hidden.has(key)) {
+        return ['notification', level, 'hide'].join(' ');
+      } else {
+        return ['notification', level].join(' ');
+      }
+    }
+
+    return (
+      <div className="notifications">
+        {Array.from(this.props.messages, ([key, msg]) => {
+          return (
+            <div key={ key }
+                 className={ className(key, msg.level) }
+                 onClick={ this.clickHandler.bind(this, key) }>
+              <p>{ msg.message }</p>
+            </div>
+          );
+        })}
+      </div>
+    )
+  }
+}
+
+let modalBox;
+const mainElement = document.querySelector('main');
+const totalMinutes = 16 * 60;
+const dayStartsAtMin = 6 * 60;
+const setWorkhoursHandler = (e) => { e.stopPropagation(); openWorkHoursModal(); };
+
+/* Work hours */
+async function loadWorkhours(db, date) {
+  let workhours = await db.getFromIndex('workhours', 'date', date);
+  if (!workhours) {
+    workhours = {
+      date: date,
+      startMinute: 8*60,
+      endMinute: 18*60
+    };
+  }
+  return workhours;
+}
+
+async function openWorkHoursModal() {
+  if(modalBox && !modalBox.maybeRemove()) { return; }
+
+  const db = await dbPromise;
+  const workhours = await loadWorkhours(db, iso8601date(date));
+  modalBox = new WorkhoursModalBox(document.querySelector('.agenda .main'), workhours.startMinute, workhours.endMinute);
+  modalBox.constructor.element.querySelector('form').addEventListener('submit', submitWorkHours);
+  modalBox.constructor.element.querySelector('input').focus();
+}
+
+async function submitWorkHours(e) {
+  e.preventDefault();
+
+  const formData = new FormData(e.target);
+  const workhours = {
+    date: iso8601date(date),
+    startMinute: timeStrToMinutes(formData.get('start')),
+    endMinute: timeStrToMinutes(formData.get('end'))
+  };
+  const db = await dbPromise;
+  await saveWorkhours(db, workhours);
+  modalBox.remove();
+  drawWorkhours(db);
+}
+
+async function saveWorkhours(db, workhours) {
+  const existingWorkhours = await db.getFromIndex('workhours', 'date', workhours.date);
+  if (existingWorkhours) {
+    workhours.id = existingWorkhours.id;
+  }
+  await db.put('workhours', workhours);
+}
+
+async function drawWorkhours(db) {
+  const workhours = await loadWorkhours(db, iso8601date(date));
+
+  const workhoursElement = document.querySelector('.work-hours');
+  workhoursElement.style.setProperty('--start-minute', workhours.startMinute - dayStartsAtMin);
+  workhoursElement.style.setProperty('--end-minute', workhours.endMinute - dayStartsAtMin);
+}
+
+dbPromise.then(drawWorkhours);
+
 class Dewt extends React.Component {
+  constructor(props) {
+    super(props);
+
+    this.state = { notifications: new Map() };
+
+    this.addNotification = this.addNotification.bind(this);
+    this.removeNotification = this.removeNotification.bind(this);
+  }
+
+  addNotification(message, level) {
+    this.setState((state) => {
+      const notifications = new Map(state.notifications);
+      notifications.set(Number(new Date()), {message, level});
+      return { notifications };
+    })
+  }
+
+  removeNotification(key) {
+    this.setState((state) => {
+      const notifications = new Map(state.notifications);
+      notifications.delete(key);
+      return { notifications };
+    });
+  }
+
   componentDidMount() {
-    const agendaElement = document.querySelector('main');
-
-    const totalMinutes = 16 * 60;
-    const dayStartsAtMin = 6 * 60;
-    const setWorkhoursHandler = (e) => { e.stopPropagation(); openWorkHoursModal(); };
-    const agendaView =
-      <AgendaView totalMinutes={16 * 60}
-                  dayStartsAtMin={6 * 60}
-                  date={date}
-                  setWorkhoursHandler={setWorkhoursHandler} />;
-    ReactDOM.render(agendaView, agendaElement)
-
-    let modalBox;
+    const this_dewt = this;
 
     // Timebox UI
     async function drawAllTimeboxes(db) {
@@ -157,8 +285,15 @@ class Dewt extends React.Component {
         });
         drawTimebox(timebox);
         modalBox.remove();
-      } catch {
-        modalBox.flash();
+      } catch (e) {
+        if (e instanceof ValidationError) {
+          modalBox.flash();
+          for (const error of e.errors) {
+            this_dewt.addNotification(error, 'error');
+          }
+        } else {
+          throw e;
+        }
       }
     }
 
@@ -197,20 +332,27 @@ class Dewt extends React.Component {
         const timebox = await updateTimebox(db, timeboxId, changedValues);
         drawTimebox(timebox);
         modalBox.remove();
-      } catch {
-        modalBox.flash();
+      } catch (e) {
+        if (e instanceof ValidationError) {
+          modalBox.flash();
+          for (const error of e.errors) {
+            this_dewt.addNotification(error, 'error');
+          }
+        } else {
+          throw e;
+        }
       }
     }
 
     function setUpAgendaListeners() {
       let mouseY;
-      agendaElement.addEventListener('mousemove', e => {
+      mainElement.addEventListener('mousemove', e => {
         mouseY = e.clientY;
       });
 
-      agendaElement.addEventListener('click', e => {
+      mainElement.addEventListener('click', e => {
         // Use the fact that 1min == 1px.
-        const agendaOffset = agendaElement.getBoundingClientRect().y;
+        const agendaOffset = mainElement.getBoundingClientRect().y;
         const mousePosition = mouseY;
         const mouseAtMinute = mousePosition - agendaOffset + dayStartsAtMin;
 
@@ -219,71 +361,20 @@ class Dewt extends React.Component {
     }
     dbPromise.then(drawAllTimeboxes);
     setUpAgendaListeners();
-
-
-    // Work hours.
-    async function openWorkHoursModal() {
-      if(modalBox && !modalBox.maybeRemove()) { return; }
-
-      const db = await dbPromise;
-      const workhours = await loadWorkhours(db, iso8601date(date));
-      modalBox = new WorkhoursModalBox(document.querySelector('.agenda .main'), workhours.startMinute, workhours.endMinute);
-      modalBox.constructor.element.querySelector('form').addEventListener('submit', submitWorkHours);
-      modalBox.constructor.element.querySelector('input').focus();
-    }
-
-    async function submitWorkHours(e) {
-      e.preventDefault();
-
-      const formData = new FormData(e.target);
-      const workhours = {
-        date: iso8601date(date),
-        startMinute: timeStrToMinutes(formData.get('start')),
-        endMinute: timeStrToMinutes(formData.get('end'))
-      };
-      const db = await dbPromise;
-      await saveWorkhours(db, workhours);
-      modalBox.remove();
-      drawWorkhours(db);
-    }
-
-    async function saveWorkhours(db, workhours) {
-      const existingWorkhours = await db.getFromIndex('workhours', 'date', workhours.date);
-      if (existingWorkhours) {
-        workhours.id = existingWorkhours.id;
-      }
-      await db.put('workhours', workhours);
-    }
-
-    async function loadWorkhours(db, date) {
-      let workhours = await db.getFromIndex('workhours', 'date', date);
-      if (!workhours) {
-        workhours = {
-          date: date,
-          startMinute: 8*60,
-          endMinute: 18*60
-        };
-      }
-      return workhours;
-    }
-
-    async function drawWorkhours(db) {
-      const workhours = await loadWorkhours(db, iso8601date(date));
-
-      const workhoursElement = document.querySelector('.work-hours');
-      workhoursElement.style.setProperty('--start-minute', workhours.startMinute - dayStartsAtMin);
-      workhoursElement.style.setProperty('--end-minute', workhours.endMinute - dayStartsAtMin);
-    }
-
-    dbPromise.then(drawWorkhours);
   }
 
   render() {
-    return null;
+    return (
+      <React.Fragment>
+        <Notifications messages={this.state.notifications}
+                       removeNotification={this.removeNotification} />
+        <AgendaView totalMinutes={16 * 60}
+                    dayStartsAtMin={6 * 60}
+                    date={date}
+                    setWorkhoursHandler={setWorkhoursHandler} />
+      </React.Fragment>
+    )
   }
 }
 
-ReactDOM.render(
-  <Dewt/>,
-  document.createElement('div')
-);
+ReactDOM.render(<Dewt/>, mainElement);
