@@ -78,32 +78,39 @@ class Hours extends React.Component {
   }
 }
 
-export default class AgendaView extends React.Component {
-  _renderLinesEvery60Min(className, firstLineAfter) {
-    let lines = [];
-    for (let min = firstLineAfter; min < this.props.totalMinutes; min += 60) {
-      lines.push(<div className={className} style={{'--start-minute': min}} key={min} />);
-    }
-    return lines;
-  }
+function _renderLines(start, end, className) {
+  const step = 60;
 
-  _renderMajorLines() {
-    const firstLineAfter = 60 - this.props.dayStartsAtMin % 60;
-    return this._renderLinesEvery60Min('rule-major', firstLineAfter);
-  }
+  const renderLine = (min) => { return <div className={className} key={min} style={{'--start-minute': min}} /> };
 
-  _renderMinorLines() {
-    let firstLineAfter;
+  return range(start, end, step).map(renderLine);
+}
+
+class MajorLines extends React.Component {
+  render() {
+    const start = 60 - this.props.dayStartsAtMin % 60;
+    const end = this.props.totalMinutes;
+
+    return _renderLines(start, end, 'rule-major');
+  }
+}
+
+class MinorLines extends React.Component {
+  render() {
+    let start;
+    const end = this.props.totalMinutes;
 
     if (this.props.dayStartsAtMin % 60 < 30) {
-      firstLineAfter = 30 - this.props.dayStartsAtMin % 30;
+      start = 30 - this.props.dayStartsAtMin % 30;
     } else {
-      firstLineAfter = 60 - (this.props.dayStartsAtMin - 30) % 60;
+      start = 60 - (this.props.dayStartsAtMin - 30) % 60;
     }
 
-    return this._renderLinesEvery60Min('rule-minor', firstLineAfter);
+    return _renderLines(start, end, 'rule-minor');
   }
+}
 
+export default class AgendaView extends React.Component {
   render() {
     const dayStartsAtMin = this.props.dayStartsAtMin;
     const totalMinutes = this.props.totalMinutes;
@@ -120,10 +127,9 @@ export default class AgendaView extends React.Component {
           </div>
           <div className="agenda-backdrop">
             <div className="work-hours"></div>
-            {this._renderMajorLines()}
-            {this._renderMinorLines()}
-            <NowRule maxMinute={totalMinutes}
-                     offset={dayStartsAtMin} />
+            <MajorLines dayStartsAtMin={dayStartsAtMin} totalMinutes={totalMinutes} />
+            <MinorLines dayStartsAtMin={dayStartsAtMin} totalMinutes={totalMinutes} />
+            <NowRule offset={dayStartsAtMin} maxMinute={totalMinutes} />
           </div>
           <div className="timeboxes"></div>
         </div>
