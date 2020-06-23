@@ -8,12 +8,13 @@ module.exports = {
     path: path.resolve(__dirname, 'dist'),
   },
   module: {
-  rules: [
-    {
-      test: /\.jsx?$/,
-      use: {
-        loader: 'babel-loader'
+    rules: [
+      {
+        test: /\.jsx?$/,
+        use: {
+          loader: 'babel-loader'
+        }
       }
-    }
-  ]}
+    ]
+  }
 };

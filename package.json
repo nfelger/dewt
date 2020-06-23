@@ -7,11 +7,12 @@
   "scripts": {
     "test": "jest",
     "build": "webpack",
-    "build:watch": "webpack --watch",
     "build:debug": "webpack -d",
+    "build:watch": "webpack -d --watch",
     "cypress:open": "cypress open",
     "cypress:run": "cypress run",
-    "precommit": "npm run build && npm test && npx cypress run"
+    "precommit": "npm run build && npm test && npx cypress run",
+    "server": "python -m SimpleHTTPServer 5000"
   },
   "dependencies": {
     "babel-loader": "^8.1.0",

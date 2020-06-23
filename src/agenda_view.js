@@ -1,4 +1,5 @@
 import React from 'react';
+import { range } from './helpers';
 
 class DayWidget extends React.Component {
   constructor(props) {
@@ -53,22 +54,31 @@ class NowRule extends React.Component {
   }
 }
 
-export default class AgendaView extends React.Component {
-  _renderHours() {
-    let hours = [];
-    const firstFullHour = 60 - this.props.dayStartsAtMin % 60;
-    for (let min = firstFullHour; min < this.props.totalMinutes; min += 60) {
-      hours.push(
-        <h3 className='time-hint'
-            style={{'--start-minute': min, '--end-minute': min + 59}}
-            key={min}>
-          {(this.props.dayStartsAtMin + min) / 60}
-          <sup>00</sup>
-        </h3>)
-    }
-    return hours;
-  }
+class Hours extends React.Component {
+  render() {
+    const start = 60 - this.props.dayStartsAtMin % 60;
+    const end = this.props.totalMinutes;
+    const step = 60;
 
+    const renderHour = (min) => {
+      return (
+        <h3 key={min}
+            className='time-hint'
+            style={{'--start-minute': min, '--end-minute': min + 59}}>
+          {(this.props.dayStartsAtMin + min) / 60}<sup>00</sup>
+        </h3>
+      )
+    };
+
+    return (
+      <div className="hours">
+        {range(start, end, step).map(renderHour)}
+      </div>
+    )
+  }
+}
+
+export default class AgendaView extends React.Component {
   _renderLinesEvery60Min(className, firstLineAfter) {
     let lines = [];
     for (let min = firstLineAfter; min < this.props.totalMinutes; min += 60) {
@@ -95,12 +105,13 @@ export default class AgendaView extends React.Component {
   }
 
   render() {
+    const dayStartsAtMin = this.props.dayStartsAtMin;
+    const totalMinutes = this.props.totalMinutes;
+
     return (
-      <div className='agenda' style={{'--total-minutes': this.props.totalMinutes}} >
+      <div className='agenda' style={{'--total-minutes': totalMinutes}} >
         <div className="left">
-          <div className="hours">
-            {this._renderHours()}
-          </div>
+          <Hours dayStartsAtMin={dayStartsAtMin} totalMinutes={totalMinutes}/>
           <DayWidget date={this.props.date} />
         </div>
         <div className="main">
@@ -111,8 +122,8 @@ export default class AgendaView extends React.Component {
             <div className="work-hours"></div>
             {this._renderMajorLines()}
             {this._renderMinorLines()}
-            <NowRule maxMinute={this.props.totalMinutes}
-                     offset={this.props.dayStartsAtMin} />
+            <NowRule maxMinute={totalMinutes}
+                     offset={dayStartsAtMin} />
           </div>
           <div className="timeboxes"></div>
         </div>
