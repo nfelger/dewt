@@ -11,8 +11,7 @@ export default class ModalBox {
   }
 
   isPristine() {
-    let formControls = Array.from(ModalBox.element.querySelectorAll('input, textarea'));
-    return formControls.every(i => i.defaultValue === i.value);
+    return isPristine(ModalBox.element);
   }
 
   maybeRemove() {
@@ -33,11 +32,20 @@ export default class ModalBox {
   }
 
   flash() {
-    ModalBox.element.classList.add('box-flash');
-    setTimeout(() => {
-      if (ModalBox.element) {  // User may have closed it already.
-        ModalBox.element.classList.remove('box-flash');
-      }
-    }, 800);
+    flash(ModalBox.element);
   }
 };
+
+export function isPristine(element) {
+  let formControls = Array.from(element.querySelectorAll('input, textarea'));
+  return formControls.every(i => i.defaultValue === i.value);
+}
+
+export function flash(element) {
+  element.classList.add('box-flash');
+  setTimeout(() => {
+    if (element) {  // User may have closed it already.
+      element.classList.remove('box-flash');
+    }
+  }, 800);
+}

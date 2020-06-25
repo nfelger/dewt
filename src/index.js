@@ -4,7 +4,7 @@ import ReactDOM from 'react-dom';
 import AgendaView from './agenda_view';
 import DraftTimeboxModal from './draft_timebox_modal';
 import EditTimeboxModal from './edit_timebox_modal';
-import WorkhoursModalBox from './workhours_modal';
+import { flash } from './modal_box';
 import { timeStrToMinutes, iso8601date, kebabToCamel } from './helpers';
 import { dbPromise, addTestData, wipeAllDataAndReAddTestData } from './database';
 import { ValidationError, allTimeboxesOnDate, loadTimebox, createTimebox, updateTimebox, deleteTimebox } from './timebox_data';
@@ -96,76 +96,25 @@ class Notifications extends React.Component {
   }
 }
 
-let modalBox;
 const mainElement = document.querySelector('main');
 const totalMinutes = 16 * 60;
 const dayStartsAtMin = 6 * 60;
-const setWorkhoursHandler = (e) => { e.stopPropagation(); openWorkHoursModal(); };
-
-/* Work hours */
-async function loadWorkhours(db, date) {
-  let workhours = await db.getFromIndex('workhours', 'date', date);
-  if (!workhours) {
-    workhours = {
-      date: date,
-      startMinute: 8*60,
-      endMinute: 18*60
-    };
-  }
-  return workhours;
-}
-
-async function openWorkHoursModal() {
-  if(modalBox && !modalBox.maybeRemove()) { return; }
-
-  const db = await dbPromise;
-  const workhours = await loadWorkhours(db, iso8601date(date));
-  modalBox = new WorkhoursModalBox(document.querySelector('.agenda .main'), workhours.startMinute, workhours.endMinute);
-  modalBox.constructor.element.querySelector('form').addEventListener('submit', submitWorkHours);
-  modalBox.constructor.element.querySelector('input').focus();
-}
-
-async function submitWorkHours(e) {
-  e.preventDefault();
-
-  const formData = new FormData(e.target);
-  const workhours = {
-    date: iso8601date(date),
-    startMinute: timeStrToMinutes(formData.get('start')),
-    endMinute: timeStrToMinutes(formData.get('end'))
-  };
-  const db = await dbPromise;
-  await saveWorkhours(db, workhours);
-  modalBox.remove();
-  drawWorkhours(db);
-}
-
-async function saveWorkhours(db, workhours) {
-  const existingWorkhours = await db.getFromIndex('workhours', 'date', workhours.date);
-  if (existingWorkhours) {
-    workhours.id = existingWorkhours.id;
-  }
-  await db.put('workhours', workhours);
-}
-
-async function drawWorkhours(db) {
-  const workhours = await loadWorkhours(db, iso8601date(date));
-
-  const workhoursElement = document.querySelector('.work-hours');
-  workhoursElement.style.setProperty('--start-minute', workhours.startMinute - dayStartsAtMin);
-  workhoursElement.style.setProperty('--end-minute', workhours.endMinute - dayStartsAtMin);
-}
-
-dbPromise.then(drawWorkhours);
 
 class Dewt extends React.Component {
   constructor(props) {
     super(props);
 
-    this.state = { notifications: new Map() };
+    this.state = {
+      notifications: new Map(),
+      modalBox: null,  // only used for timeboxes
+      modalBoxMaybeRemove: () => { return true }
+    };
 
     this.addNotification = this.addNotification.bind(this);
     this.removeNotification = this.removeNotification.bind(this);
+
+    this.setModalBoxMaybeRemove = this.setModalBoxMaybeRemove.bind(this);
+    this.removeModalBox = this.removeModalBox.bind(this);
   }
 
   addNotification(message, level) {
@@ -182,6 +131,18 @@ class Dewt extends React.Component {
       notifications.delete(key);
       return { notifications };
     });
+  }
+
+  setModalBoxMaybeRemove(modalBoxMaybeRemove) {
+    this.setState(() => { return { modalBoxMaybeRemove }; });
+  }
+
+  removeModalBox() {
+    this.state.modalBox.remove();
+    this.setState(() => { return {
+      modalBox: null,
+      modalBoxMaybeRemove: () => { return true; }
+    }; });
   }
 
   componentDidMount() {
@@ -230,20 +191,26 @@ class Dewt extends React.Component {
     }
 
     function openDraftTimeboxModal(startMinute) {
-      if(modalBox && !modalBox.maybeRemove()) { return; }
+      if(!this_dewt.state.modalBoxMaybeRemove()) { return; }
 
       startMinute = startMinute - dayStartsAtMin;
       const endMinute = startMinute + 45;
-      modalBox = new DraftTimeboxModal(document.querySelector('.timeboxes'), startMinute, endMinute);
+      let modalBox = new DraftTimeboxModal(document.querySelector('.timeboxes'), startMinute, endMinute);
       modalBox.constructor.element.querySelector('form').addEventListener('submit', submitDraftTimebox);
       modalBox.constructor.element.querySelector('textarea').focus();
+      this_dewt.setState(() => {
+        return {
+          modalBox,
+          modalBoxMaybeRemove: modalBox.maybeRemove.bind(modalBox)
+        };
+      });
     }
 
     async function openTimeboxEditModal(e) {
       // Stop clicks from bubbling to the agenda.
       e.stopPropagation();
 
-      if(modalBox && !modalBox.maybeRemove()) { return; }
+      if(!this_dewt.state.modalBoxMaybeRemove()) { return; }
 
       const timeboxElement = e.currentTarget;
       const timeboxId = timeboxElement.dataset.timeboxId;
@@ -251,14 +218,20 @@ class Dewt extends React.Component {
       const db = await dbPromise;
       const timebox = await loadTimebox(db, timeboxId);
 
-      modalBox = new EditTimeboxModal(timeboxElement, timeboxId, timebox);
+      let modalBox = new EditTimeboxModal(timeboxElement, timeboxId, timebox);
       modalBox.constructor.element.querySelector('.delete-timebox a').addEventListener('click', async e => {
         e.preventDefault();
         await deleteTimebox(db, timeboxId);
-        modalBox.remove();
+        this_dewt.removeModalBox();
         timeboxElement.remove();
       });
       modalBox.constructor.element.querySelector('form').addEventListener('submit', submitEditTimebox);
+      this_dewt.setState(() => {
+        return {
+          modalBox,
+          modalBoxMaybeRemove: modalBox.maybeRemove.bind(modalBox)
+        };
+      });
     }
 
     async function submitDraftTimebox(e) {
@@ -280,14 +253,14 @@ class Dewt extends React.Component {
           details: details,
           themeColor: 1,
           date: iso8601date(date),
-          startMinute: Number(modalBox.constructor.element.style.getPropertyValue('--start-minute')) + dayStartsAtMin,
-          endMinute: Number(modalBox.constructor.element.style.getPropertyValue('--end-minute')) + dayStartsAtMin
+          startMinute: Number(this_dewt.state.modalBox.constructor.element.style.getPropertyValue('--start-minute')) + dayStartsAtMin,
+          endMinute: Number(this_dewt.state.modalBox.constructor.element.style.getPropertyValue('--end-minute')) + dayStartsAtMin
         });
         drawTimebox(timebox);
-        modalBox.remove();
+        this_dewt.removeModalBox();
       } catch (e) {
         if (e instanceof ValidationError) {
-          modalBox.flash();
+          flash(this_dewt.state.modalBox.constructor.element);
           for (const error of e.errors) {
             this_dewt.addNotification(error, 'error');
           }
@@ -300,12 +273,12 @@ class Dewt extends React.Component {
     async function submitEditTimebox(e) {
       e.preventDefault();
 
-      const form = modalBox.constructor.element.querySelector('form');
+      const form = this_dewt.state.modalBox.constructor.element.querySelector('form');
       if (!form.reportValidity()) {
         return;
       }
 
-      const formControls = Array.from(modalBox.constructor.element.querySelectorAll('input'));
+      const formControls = Array.from(this_dewt.state.modalBox.constructor.element.querySelectorAll('input'));
       const dirtyControls = formControls.filter(c => c.value !== c.defaultValue);
 
       let changedValues = {};
@@ -326,15 +299,15 @@ class Dewt extends React.Component {
         changedValues[name] = value;
       }
 
-      const timeboxId = modalBox.constructor.element.dataset.timeboxId;
+      const timeboxId = this_dewt.state.modalBox.constructor.element.dataset.timeboxId;
       const db = await dbPromise;
       try {
         const timebox = await updateTimebox(db, timeboxId, changedValues);
         drawTimebox(timebox);
-        modalBox.remove();
+        this_dewt.removeModalBox();
       } catch (e) {
         if (e instanceof ValidationError) {
-          modalBox.flash();
+          flash(this_dewt.state.modalBox.constructor.element);
           for (const error of e.errors) {
             this_dewt.addNotification(error, 'error');
           }
@@ -371,7 +344,8 @@ class Dewt extends React.Component {
         <AgendaView totalMinutes={16 * 60}
                     dayStartsAtMin={6 * 60}
                     date={date}
-                    setWorkhoursHandler={setWorkhoursHandler} />
+                    modalBoxMaybeRemove={this.state.modalBoxMaybeRemove}
+                    setModalBoxMaybeRemove={this.setModalBoxMaybeRemove} />
       </React.Fragment>
     )
   }
