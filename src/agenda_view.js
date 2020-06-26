@@ -4,6 +4,7 @@ import { dbPromise } from './database';
 import { loadWorkhours, saveWorkhours } from './workhours_data';
 import { isPristine, flash } from './modal_box';
 import { validatesStartBeforeEnd } from './form_validations';
+import { createTimebox, ValidationError } from './timebox_data';
 
 class DayWidget extends React.Component {
   constructor(props) {
@@ -227,36 +228,170 @@ function Workhours(props) {
   )
 }
 
+const DraftTimebox = React.forwardRef((props, ref) => {
+  if (props.atMinute === null) { return null; }
+
+  const startMinute = props.atMinute - props.dayStartsAtMin;
+  const duration = 45;
+
+  const detailsTextarea = useRef();
+  useEffect(() => {
+    detailsTextarea.current.focus();
+  }, [props.atMinute]);
+
+  const formElement = useRef();
+  const changeHandler = (e) => {
+    // Wire adding line breaks (from hitting enter but also from copy&paste) to a form submit.
+    const endsInNewline = e.currentTarget.value.slice(-1) === '\n';
+    e.currentTarget.value = e.currentTarget.value.replace(/\n/g, '');
+
+    if (e.currentTarget.value !== "" && endsInNewline) {
+      formElement.current.requestSubmit();
+    }
+  };
+
+  const submitHandler = async (e) => {
+    e.preventDefault();
+
+    let project = null;
+    let details = new FormData(e.target).get('details');
+
+    const firstColonLocation = details.indexOf(':');
+    if (firstColonLocation !== -1) {
+      project = details.slice(0, firstColonLocation);
+      details = details.slice(firstColonLocation + 1);
+    }
+
+    const db = await dbPromise;
+    try {
+      const timebox = await createTimebox(db, {
+        project: project,
+        details: details,
+        themeColor: 1,
+        date: iso8601date(props.date),
+        startMinute: props.atMinute,
+        endMinute: props.atMinute + duration
+      });
+
+      props.timeboxAddedCallback(timebox);
+      props.clearDraftTimebox();
+    } catch (e) {
+      if (e instanceof ValidationError) {
+        flash(ref.current);
+        for (const error of e.errors) {
+          props.addNotification(error, 'error');
+        }
+      } else {
+        throw e;
+      }
+    }
+  };
+
+  const escapeHandler = (e) => { if (e.key == "Escape") { props.clearDraftTimebox(); }};
+  const closeBtnHandler = (e) => {
+    e.stopPropagation();
+    props.clearDraftTimebox();
+  };
+
+  return (
+    <article ref={ ref }
+             className="timebox timebox-draft"
+             style={ {'--start-minute': startMinute, '--end-minute': startMinute + duration } }
+             onKeyDown={ escapeHandler }
+             onClick={ (e) => e.stopPropagation() } >
+      <form ref={ formElement } action="" onSubmit={ submitHandler }>
+        <textarea ref={ detailsTextarea }
+                  name="details"
+                  placeholder="Work on something deeply"
+                  onChange={ changeHandler } />
+        <button type="submit"></button>
+      </form>
+      <div className="closeBtn" onClick={ closeBtnHandler }>×</div>
+    </article>
+  )
+});
+
 export default function AgendaView(props) {
   const dayStartsAtMin = props.dayStartsAtMin;
   const totalMinutes = props.totalMinutes;
 
   const [workhours, setWorkhours] = useState({ startMinute: 8 * 60, endMinute: 18 * 60 });
-
   useEffect(() => {
     dbPromise.then((db) => {
       loadWorkhours(db, iso8601date(props.date)).then(setWorkhours);
     });
   }, [props.date]);
 
+  const [mouseAtMinute, setMouseAtMinute] = useState(0);
+  const mouseMoveHandler = (e) => {
+    // Use the fact that 1min == 1px.
+    const agendaOffset = e.currentTarget.getBoundingClientRect().y;
+    const mousePosition = e.clientY;
+    const mouseAtMinute = mousePosition - agendaOffset + dayStartsAtMin;
+
+    setMouseAtMinute(mouseAtMinute);
+  };
+
+  const [draftTimeboxAtMinute, setDraftTimeboxAtMinute] = useState(null);
+  const clickHandler = () => {
+    if(!props.modalBoxMaybeRemove()) { return; }
+
+    setDraftTimeboxAtMinute(mouseAtMinute);
+  };
+
+  const clearDraftTimebox = () => {
+    setDraftTimeboxAtMinute(null);
+    props.setModalBoxMaybeRemove(() => { return true; });
+  };
+
+  const draftTimeboxElement = useRef();
+  useEffect(() => {
+    if (!draftTimeboxAtMinute) { return; }
+
+    props.setModalBoxMaybeRemove(() => {
+      if (!draftTimeboxAtMinute) { return true; }
+
+      if (isPristine(draftTimeboxElement.current)) {
+        clearDraftTimebox();
+        return true;
+      } else {
+        flash(draftTimeboxElement.current);
+        return false;
+      }
+    });
+  }, [draftTimeboxAtMinute]);
+
   return (
-    <div className='agenda' style={{'--total-minutes': totalMinutes}} >
+    <div className='agenda'
+         style={ {'--total-minutes': totalMinutes} }
+         onMouseMove={ mouseMoveHandler }
+         onClick={ clickHandler } >
       <div className="left">
-        <Hours dayStartsAtMin={dayStartsAtMin} totalMinutes={totalMinutes}/>
-        <DayWidget date={props.date} />
+        <Hours dayStartsAtMin={ dayStartsAtMin } totalMinutes={ totalMinutes }/>
+        <DayWidget date={ props.date } />
       </div>
       <div className="main">
         <div className="agenda-backdrop">
-          <Workhours workhours={workhours} dayStartsAtMin={dayStartsAtMin} />
-          <MajorLines dayStartsAtMin={dayStartsAtMin} totalMinutes={totalMinutes} />
-          <MinorLines dayStartsAtMin={dayStartsAtMin} totalMinutes={totalMinutes} />
-          <NowRule offset={dayStartsAtMin} maxMinute={totalMinutes} />
+          <Workhours workhours={ workhours } dayStartsAtMin={ dayStartsAtMin } />
+          <MajorLines dayStartsAtMin={ dayStartsAtMin } totalMinutes={ totalMinutes } />
+          <MinorLines dayStartsAtMin={ dayStartsAtMin } totalMinutes={ totalMinutes } />
+          <NowRule offset={ dayStartsAtMin } maxMinute={ totalMinutes } />
         </div>
-        <div className="timeboxes"></div>
-        <SetWorkhours modalBoxMaybeRemove={props.modalBoxMaybeRemove}
-                      setModalBoxMaybeRemove={props.setModalBoxMaybeRemove}
-                      workhours={workhours}
-                      setWorkhours={setWorkhours} />
+        <div className="timeboxes">
+          <DraftTimebox ref={ draftTimeboxElement }
+                        atMinute={ draftTimeboxAtMinute }
+                        date={ props.date }
+                        dayStartsAtMin={ dayStartsAtMin }
+                        addNotification={ props.addNotification }
+                        timeboxAddedCallback={ props.timeboxAddedCallback }
+                        modalBoxMaybeRemove={ props.modalBoxMaybeRemove }
+                        setModalBoxMaybeRemove={ props.setModalBoxMaybeRemove }
+                        clearDraftTimebox={ clearDraftTimebox } />
+        </div>
+        <SetWorkhours modalBoxMaybeRemove={ props.modalBoxMaybeRemove }
+                      setModalBoxMaybeRemove={ props.setModalBoxMaybeRemove }
+                      workhours={ workhours }
+                      setWorkhours={ setWorkhours } />
       </div>
     </div>
   )

@@ -2,12 +2,11 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 
 import AgendaView from './agenda_view';
-import DraftTimeboxModal from './draft_timebox_modal';
 import EditTimeboxModal from './edit_timebox_modal';
 import { flash } from './modal_box';
 import { timeStrToMinutes, iso8601date, kebabToCamel } from './helpers';
 import { dbPromise, addTestData, wipeAllDataAndReAddTestData } from './database';
-import { ValidationError, allTimeboxesOnDate, loadTimebox, createTimebox, updateTimebox, deleteTimebox } from './timebox_data';
+import { ValidationError, allTimeboxesOnDate, loadTimebox, updateTimebox, deleteTimebox } from './timebox_data';
 
 function parseCalendarDateFromLocation() {
   const location = new URL(window.location.href);
@@ -115,6 +114,8 @@ class Dewt extends React.Component {
 
     this.setModalBoxMaybeRemove = this.setModalBoxMaybeRemove.bind(this);
     this.removeModalBox = this.removeModalBox.bind(this);
+
+    this.timeboxAddedCallback = this.timeboxAddedCallback.bind(this);
   }
 
   addNotification(message, level) {
@@ -145,207 +146,143 @@ class Dewt extends React.Component {
     }; });
   }
 
-  componentDidMount() {
-    const this_dewt = this;
+  timeboxAddedCallback(timebox) {
+    this.drawTimebox(timebox);
+  }
 
-    // Timebox UI
-    async function drawAllTimeboxes(db) {
+  drawTimebox(timebox) {
+    const existingTimebox = document.querySelector(`article[data-timebox-id="${timebox.id}"]`);
+    if (existingTimebox) {
+      existingTimebox.remove();
+    }
+
+    if (timebox.date !== iso8601date(date)
+      || timebox.startMinute < dayStartsAtMin
+      || timebox.endMinute > dayStartsAtMin + totalMinutes
+    ) {
+      return;
+    }
+
+    const timeboxElement = document.createElement('article');
+    timeboxElement.classList.add('timebox', `theme-color-${timebox.themeColor}`);
+    timeboxElement.style.setProperty('--start-minute', timebox.startMinute - dayStartsAtMin);
+    timeboxElement.style.setProperty('--end-minute', timebox.endMinute - dayStartsAtMin);
+
+    const details = document.createElement('h4');
+    details.textContent = timebox.details;
+    timeboxElement.appendChild(details);
+
+    const project = document.createElement('h5');
+    project.textContent = timebox.project;
+    timeboxElement.appendChild(project);
+
+    timeboxElement.dataset.timeboxId = timebox.id;
+
+    timeboxElement.addEventListener('click', e => this.openTimeboxEditModal(e));
+
+    document.querySelector('.timeboxes').appendChild(timeboxElement);
+  }
+
+  async openTimeboxEditModal(e) {
+    // Stop clicks from bubbling to the agenda.
+    e.stopPropagation();
+
+    if(!this.state.modalBoxMaybeRemove()) { return; }
+
+    const timeboxElement = e.currentTarget;
+    const timeboxId = timeboxElement.dataset.timeboxId;
+
+    const db = await dbPromise;
+    const timebox = await loadTimebox(db, timeboxId);
+
+    let modalBox = new EditTimeboxModal(timeboxElement, timeboxId, timebox);
+    modalBox.constructor.element.querySelector('.delete-timebox a').addEventListener('click', async e => {
+      e.preventDefault();
+      await deleteTimebox(db, timeboxId);
+      this.removeModalBox();
+      timeboxElement.remove();
+    });
+    modalBox.constructor.element.querySelector('form').addEventListener('submit', e => this.submitEditTimebox(e));
+    this.setState(() => {
+      return {
+        modalBox,
+        modalBoxMaybeRemove: modalBox.maybeRemove.bind(modalBox)
+      };
+    });
+  }
+
+
+  async submitEditTimebox(e) {
+    e.preventDefault();
+
+    const form = this.state.modalBox.constructor.element.querySelector('form');
+    if (!form.reportValidity()) {
+      return;
+    }
+
+    const formControls = Array.from(this.state.modalBox.constructor.element.querySelectorAll('input'));
+    const dirtyControls = formControls.filter(c => c.value !== c.defaultValue);
+
+    let changedValues = {};
+    for (let control of dirtyControls) {
+      let value = control.value;
+      let name = kebabToCamel(control.name);
+      // Transform data where necessary.
+      switch(name) {
+        case 'startMinute':
+        case 'endMinute':
+          value = timeStrToMinutes(value);
+          break;
+        case 'date':
+          const [year, month, day] = value.split('-').map(Number);
+          value = iso8601date(new Date(year, month - 1, day));
+          break;
+      }
+      changedValues[name] = value;
+    }
+
+    const timeboxId = this.state.modalBox.constructor.element.dataset.timeboxId;
+    const db = await dbPromise;
+    try {
+      const timebox = await updateTimebox(db, timeboxId, changedValues);
+      this.drawTimebox(timebox);
+      this.removeModalBox();
+    } catch (e) {
+      if (e instanceof ValidationError) {
+        flash(this.state.modalBox.constructor.element);
+        for (const error of e.errors) {
+          this.addNotification(error, 'error');
+        }
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  componentDidMount() {
+    const drawAllTimeboxes = async (db) => {
       const timeboxes = await allTimeboxesOnDate(db, iso8601date(date));
 
       for (let timebox of timeboxes) {
-        drawTimebox(timebox);
+        this.drawTimebox(timebox);
       }
-    }
+    };
 
-    function drawTimebox(timebox) {
-      const existingTimebox = document.querySelector(`article[data-timebox-id="${timebox.id}"]`);
-      if (existingTimebox) {
-        existingTimebox.remove();
-      }
-
-      if (timebox.date !== iso8601date(date)
-        || timebox.startMinute < dayStartsAtMin
-        || timebox.endMinute > dayStartsAtMin + totalMinutes
-      ) {
-        return;
-      }
-
-      const timeboxElement = document.createElement('article');
-      timeboxElement.classList.add('timebox', `theme-color-${timebox.themeColor}`);
-      timeboxElement.style.setProperty('--start-minute', timebox.startMinute - dayStartsAtMin);
-      timeboxElement.style.setProperty('--end-minute', timebox.endMinute - dayStartsAtMin);
-
-      const details = document.createElement('h4');
-      details.textContent = timebox.details;
-      timeboxElement.appendChild(details);
-
-      const project = document.createElement('h5');
-      project.textContent = timebox.project;
-      timeboxElement.appendChild(project);
-
-      timeboxElement.dataset.timeboxId = timebox.id;
-
-      timeboxElement.addEventListener('click', openTimeboxEditModal);
-
-      document.querySelector('.timeboxes').appendChild(timeboxElement);
-    }
-
-    function openDraftTimeboxModal(startMinute) {
-      if(!this_dewt.state.modalBoxMaybeRemove()) { return; }
-
-      startMinute = startMinute - dayStartsAtMin;
-      const endMinute = startMinute + 45;
-      let modalBox = new DraftTimeboxModal(document.querySelector('.timeboxes'), startMinute, endMinute);
-      modalBox.constructor.element.querySelector('form').addEventListener('submit', submitDraftTimebox);
-      modalBox.constructor.element.querySelector('textarea').focus();
-      this_dewt.setState(() => {
-        return {
-          modalBox,
-          modalBoxMaybeRemove: modalBox.maybeRemove.bind(modalBox)
-        };
-      });
-    }
-
-    async function openTimeboxEditModal(e) {
-      // Stop clicks from bubbling to the agenda.
-      e.stopPropagation();
-
-      if(!this_dewt.state.modalBoxMaybeRemove()) { return; }
-
-      const timeboxElement = e.currentTarget;
-      const timeboxId = timeboxElement.dataset.timeboxId;
-
-      const db = await dbPromise;
-      const timebox = await loadTimebox(db, timeboxId);
-
-      let modalBox = new EditTimeboxModal(timeboxElement, timeboxId, timebox);
-      modalBox.constructor.element.querySelector('.delete-timebox a').addEventListener('click', async e => {
-        e.preventDefault();
-        await deleteTimebox(db, timeboxId);
-        this_dewt.removeModalBox();
-        timeboxElement.remove();
-      });
-      modalBox.constructor.element.querySelector('form').addEventListener('submit', submitEditTimebox);
-      this_dewt.setState(() => {
-        return {
-          modalBox,
-          modalBoxMaybeRemove: modalBox.maybeRemove.bind(modalBox)
-        };
-      });
-    }
-
-    async function submitDraftTimebox(e) {
-      e.preventDefault();
-
-      let project = null;
-      let details = new FormData(e.target).get('details');
-
-      const firstColonLocation = details.indexOf(':');
-      if (firstColonLocation !== -1) {
-        project = details.slice(0, firstColonLocation);
-        details = details.slice(firstColonLocation + 1);
-      }
-
-      const db = await dbPromise;
-      try {
-        const timebox = await createTimebox(db, {
-          project: project,
-          details: details,
-          themeColor: 1,
-          date: iso8601date(date),
-          startMinute: Number(this_dewt.state.modalBox.constructor.element.style.getPropertyValue('--start-minute')) + dayStartsAtMin,
-          endMinute: Number(this_dewt.state.modalBox.constructor.element.style.getPropertyValue('--end-minute')) + dayStartsAtMin
-        });
-        drawTimebox(timebox);
-        this_dewt.removeModalBox();
-      } catch (e) {
-        if (e instanceof ValidationError) {
-          flash(this_dewt.state.modalBox.constructor.element);
-          for (const error of e.errors) {
-            this_dewt.addNotification(error, 'error');
-          }
-        } else {
-          throw e;
-        }
-      }
-    }
-
-    async function submitEditTimebox(e) {
-      e.preventDefault();
-
-      const form = this_dewt.state.modalBox.constructor.element.querySelector('form');
-      if (!form.reportValidity()) {
-        return;
-      }
-
-      const formControls = Array.from(this_dewt.state.modalBox.constructor.element.querySelectorAll('input'));
-      const dirtyControls = formControls.filter(c => c.value !== c.defaultValue);
-
-      let changedValues = {};
-      for (let control of dirtyControls) {
-        let value = control.value;
-        let name = kebabToCamel(control.name);
-        // Transform data where necessary.
-        switch(name) {
-          case 'startMinute':
-          case 'endMinute':
-            value = timeStrToMinutes(value);
-            break;
-          case 'date':
-            const [year, month, day] = value.split('-').map(Number);
-            value = iso8601date(new Date(year, month - 1, day));
-            break;
-        }
-        changedValues[name] = value;
-      }
-
-      const timeboxId = this_dewt.state.modalBox.constructor.element.dataset.timeboxId;
-      const db = await dbPromise;
-      try {
-        const timebox = await updateTimebox(db, timeboxId, changedValues);
-        drawTimebox(timebox);
-        this_dewt.removeModalBox();
-      } catch (e) {
-        if (e instanceof ValidationError) {
-          flash(this_dewt.state.modalBox.constructor.element);
-          for (const error of e.errors) {
-            this_dewt.addNotification(error, 'error');
-          }
-        } else {
-          throw e;
-        }
-      }
-    }
-
-    function setUpAgendaListeners() {
-      let mouseY;
-      mainElement.addEventListener('mousemove', e => {
-        mouseY = e.clientY;
-      });
-
-      mainElement.addEventListener('click', e => {
-        // Use the fact that 1min == 1px.
-        const agendaOffset = mainElement.getBoundingClientRect().y;
-        const mousePosition = mouseY;
-        const mouseAtMinute = mousePosition - agendaOffset + dayStartsAtMin;
-
-        openDraftTimeboxModal(mouseAtMinute);
-      });
-    }
     dbPromise.then(drawAllTimeboxes);
-    setUpAgendaListeners();
   }
 
   render() {
     return (
       <React.Fragment>
-        <Notifications messages={this.state.notifications}
-                       removeNotification={this.removeNotification} />
-        <AgendaView totalMinutes={16 * 60}
-                    dayStartsAtMin={6 * 60}
-                    date={date}
-                    modalBoxMaybeRemove={this.state.modalBoxMaybeRemove}
-                    setModalBoxMaybeRemove={this.setModalBoxMaybeRemove} />
+        <Notifications messages={ this.state.notifications }
+                       removeNotification={ this.removeNotification } />
+        <AgendaView totalMinutes={ 16 * 60 }
+                    dayStartsAtMin={ 6 * 60 }
+                    date={ date }
+                    addNotification={ this.addNotification }
+                    modalBoxMaybeRemove={ this.state.modalBoxMaybeRemove }
+                    setModalBoxMaybeRemove={ this.setModalBoxMaybeRemove }
+                    timeboxAddedCallback={ this.timeboxAddedCallback } />
       </React.Fragment>
     )
   }
