@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Hours, DayWidget, MajorLines, MinorLines, NowRule } from './calendar_scaffolding';
-import { Workhours, SetWorkhours } from './workhours';
+import Workhours from './workhours';
 import DraftTimebox from './draft_timebox';
 import { dbPromise } from '../database';
 import { ValidationError, allTimeboxesOnDate, deleteTimebox, loadTimebox, updateTimebox } from '../timebox_data';
-import { loadWorkhours } from '../workhours_data';
 import { iso8601date, kebabToCamel, timeStrToMinutes } from '../helpers';
 import { isPristine, flash } from '../modal_box';
 import EditTimeboxModal from '../edit_timebox_modal';
@@ -12,13 +11,6 @@ import EditTimeboxModal from '../edit_timebox_modal';
 export default function AgendaView(props) {
   const dayStartsAtMin = props.dayStartsAtMin;
   const totalMinutes = props.totalMinutes;
-
-  const [workhours, setWorkhours] = useState({ startMinute: 8 * 60, endMinute: 18 * 60 });
-  useEffect(() => {
-    dbPromise.then((db) => {
-      loadWorkhours(db, iso8601date(props.date)).then(setWorkhours);
-    });
-  }, [props.date]);
 
   const [mouseAtMinute, setMouseAtMinute] = useState(0);
   const mouseMoveHandler = (e) => {
@@ -202,8 +194,10 @@ export default function AgendaView(props) {
       </div>
       <div className="main">
         <div className="agenda-backdrop">
-          <Workhours workhours={ workhours }
-                     dayStartsAtMin={ dayStartsAtMin } />
+          <Workhours date={ props.date }
+                     dayStartsAtMin={ dayStartsAtMin }
+                     modalBoxMaybeRemoveRef={ modalBoxMaybeRemoveRef }
+                     setModalBoxMaybeRemove={ setModalBoxMaybeRemove } />
           <MajorLines dayStartsAtMin={ dayStartsAtMin }
                       totalMinutes={ totalMinutes } />
           <MinorLines dayStartsAtMin={ dayStartsAtMin }
@@ -222,10 +216,6 @@ export default function AgendaView(props) {
                         setModalBoxMaybeRemove={ setModalBoxMaybeRemove }
                         clearDraftTimebox={ clearDraftTimebox } />
         </div>
-        <SetWorkhours modalBoxMaybeRemoveRef={ modalBoxMaybeRemoveRef }
-                      setModalBoxMaybeRemove={ setModalBoxMaybeRemove }
-                      workhours={ workhours }
-                      setWorkhours={ setWorkhours } />
       </div>
     </div>
   )

@@ -1,11 +1,41 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { isPristine, flash } from '../modal_box';
-import { timeStrToMinutes, minutesToTimeStr } from '../helpers';
+import { timeStrToMinutes, minutesToTimeStr, iso8601date } from '../helpers';
 import { dbPromise } from '../database';
-import { saveWorkhours } from '../workhours_data';
+import { loadWorkhours, saveWorkhours } from '../workhours_data';
 import { validatesStartBeforeEnd } from '../form_validations';
 
-export function SetWorkhours(props) {
+
+export default function Workhours(props) {
+  const [workhours, setWorkhours] = useState({ startMinute: 8 * 60, endMinute: 18 * 60 });
+  useEffect(() => {
+    dbPromise.then((db) => {
+      loadWorkhours(db, iso8601date(props.date)).then(setWorkhours);
+    });
+  }, [props.date]);
+
+
+  return (
+    <React.Fragment>
+      <WorkhoursBackdrop workhours={ workhours }
+                         dayStartsAtMin={ props.dayStartsAtMin } />
+      <SetWorkhoursLink modalBoxMaybeRemoveRef={ props.modalBoxMaybeRemoveRef }
+                    setModalBoxMaybeRemove={ props.setModalBoxMaybeRemove }
+                    workhours={ workhours }
+                    setWorkhours={ setWorkhours } />
+    </React.Fragment>
+  );
+}
+
+function WorkhoursBackdrop(props) {
+  return (
+    <div className="work-hours"
+         style={{'--start-minute': props.workhours.startMinute - props.dayStartsAtMin,
+                 '--end-minute': props.workhours.endMinute - props.dayStartsAtMin}} />
+  )
+}
+
+function SetWorkhoursLink(props) {
   const [showForm, setShowForm] = useState(false);
   const modalBoxElement = useRef();
 
@@ -46,7 +76,7 @@ export function SetWorkhours(props) {
   )
 }
 
-export const WorkhoursModal = React.forwardRef((props, ref) => {
+const WorkhoursModal = React.forwardRef((props, ref) => {
   const cancelHandler = (e) => {
     e.preventDefault();
     props.hideForm();
@@ -109,11 +139,3 @@ export const WorkhoursModal = React.forwardRef((props, ref) => {
     </div>
   );
 });
-
-export function Workhours(props) {
-  return (
-    <div className="work-hours"
-         style={{'--start-minute': props.workhours.startMinute - props.dayStartsAtMin,
-                 '--end-minute': props.workhours.endMinute - props.dayStartsAtMin}} />
-  )
-}
