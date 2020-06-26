@@ -123,6 +123,7 @@ describe('The day view', () => {
         .type('deeeeeep work{enter}')
 
       cy.get('article h4')
+        .should('have.length', 4)
         .contains('deeeeeep work')
     })
 
@@ -186,12 +187,14 @@ describe('The day view', () => {
         .click()
 
       // Timebox properties and location should have updated.
+      cy.get('article.theme-color-2')
+        .should('have.length', 2)
+
       cy.get('article')
         .contains('research')
         .parent()
         .contains('was sind Pangoline')
         .parent()
-        .should('have.class', 'theme-color-2')
         .should('have.css', 'grid-row-start', '151')
         .should('have.css', 'grid-row-end', '316')
     })
