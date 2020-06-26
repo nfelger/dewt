@@ -11,11 +11,11 @@ export function SetWorkhours(props) {
 
   const clickHandler = (e) => {
     e.stopPropagation();
-    if(!props.modalBoxMaybeRemove()) { return; }
+    if(!props.modalBoxMaybeRemoveRef.current()) { return; }
 
     setShowForm(true);
 
-    props.setModalBoxMaybeRemove(() => {
+    props.setModalBoxMaybeRemove(() => () => {
       if (!modalBoxElement.current) { return true; }
 
       if (isPristine(modalBoxElement.current)) {
@@ -30,7 +30,7 @@ export function SetWorkhours(props) {
 
   const hideForm = () => {
     setShowForm(false);
-    props.setModalBoxMaybeRemove(() => { return true; });
+    props.setModalBoxMaybeRemove(() => () => true);
   };
 
   return (
