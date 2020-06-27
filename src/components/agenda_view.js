@@ -19,27 +19,31 @@ export default function AgendaView(props) {
     mouseAtMinute.current = mousePosition - agendaOffset + dayStartsAtMin;
   };
 
+  const [requestModalBoxRemoval, setRequestModalBoxRemoval] = useState(() => () => true);
+  const requestModalBoxRemovalRef = useRef(null);
+  requestModalBoxRemovalRef.current = requestModalBoxRemoval;
+
   const [draftTimeboxAtMinute, setDraftTimeboxAtMinute] = useState(null);
-  const clickHandler = () => {
-    if(!modalBoxMaybeRemoveRef.current()) { return; }
+  const handleClick = () => {
+    if(!requestModalBoxRemovalRef.current()) { return; }
 
     setDraftTimeboxAtMinute(mouseAtMinute.current);
   };
 
-  const clearDraftTimebox = () => {
+  const removeDraftTimebox = () => {
     setDraftTimeboxAtMinute(null);
-    setModalBoxMaybeRemove(() => () => true);
+    setRequestModalBoxRemoval(() => () => true);
   };
 
   const draftTimeboxElement = useRef();
   useEffect(() => {
     if (!draftTimeboxAtMinute) { return; }
 
-    setModalBoxMaybeRemove(() => () => {
+    setRequestModalBoxRemoval(() => () => {
       if (!draftTimeboxAtMinute) { return true; }
 
       if (isFormPristine(draftTimeboxElement.current)) {
-        clearDraftTimebox();
+        removeDraftTimebox();
         return true;
       } else {
         flash(draftTimeboxElement.current);
@@ -48,13 +52,9 @@ export default function AgendaView(props) {
     });
   }, [draftTimeboxAtMinute]);
 
-  const [modalBoxMaybeRemove, setModalBoxMaybeRemove] = useState(() => () => true);
-  const modalBoxMaybeRemoveRef = useRef(null);
-  modalBoxMaybeRemoveRef.current = modalBoxMaybeRemove;
-
   const [timeboxes, setTimeboxes] = useState(new Map());
 
-  const onTimeboxCreateOrUpdate = timebox => setTimeboxes(timeboxes => {
+  const handleTimeboxCreateOrUpdate = timebox => setTimeboxes(timeboxes => {
     if (timebox.date === props.date) {
       return new Map(timeboxes).set(timebox.id, timebox);
     } else {
@@ -64,7 +64,7 @@ export default function AgendaView(props) {
     }
   });
 
-  const onTimeboxRemove = (timeboxId) => {
+  const handleTimeboxRemove = (timeboxId) => {
     setTimeboxes(prevTimeboxes => {
       const timeboxes = new Map(prevTimeboxes)
       timeboxes.delete(timeboxId);
@@ -88,7 +88,7 @@ export default function AgendaView(props) {
     <div className='agenda'
          style={ {'--total-minutes': totalMinutes} }
          onMouseMove={ handleMouseMove }
-         onClick={ clickHandler } >
+         onClick={ handleClick } >
       <div className="left">
         <Hours dayStartsAtMin={ dayStartsAtMin }
                totalMinutes={ totalMinutes }/>
@@ -98,8 +98,8 @@ export default function AgendaView(props) {
         <div className="agenda-backdrop">
           <Workhours date={ props.date }
                      dayStartsAtMin={ dayStartsAtMin }
-                     modalBoxMaybeRemoveRef={ modalBoxMaybeRemoveRef }
-                     setModalBoxMaybeRemove={ setModalBoxMaybeRemove } />
+                     requestModalBoxRemovalRef={ requestModalBoxRemovalRef }
+                     setRequestModalBoxRemoval={ setRequestModalBoxRemoval } />
           <MajorLines dayStartsAtMin={ dayStartsAtMin }
                       totalMinutes={ totalMinutes } />
           <MinorLines dayStartsAtMin={ dayStartsAtMin }
@@ -114,20 +114,18 @@ export default function AgendaView(props) {
                        timebox={ timebox }
                        dayStartsAtMin={ dayStartsAtMin }
                        addNotification={ props.addNotification }
-                       onTimeboxCreateOrUpdate={ onTimeboxCreateOrUpdate }
-                       onTimeboxRemove={ onTimeboxRemove }
-                       modalBoxMaybeRemoveRef={ modalBoxMaybeRemoveRef }
-                       setModalBoxMaybeRemove={ setModalBoxMaybeRemove } />)
+                       handleTimeboxCreateOrUpdate={ handleTimeboxCreateOrUpdate } //
+                       handleTimeboxRemove={ handleTimeboxRemove }//
+                       requestModalBoxRemovalRef={ requestModalBoxRemovalRef }
+                       setRequestModalBoxRemoval={ setRequestModalBoxRemoval } />)
           }
           <DraftTimebox ref={ draftTimeboxElement }
                         atMinute={ draftTimeboxAtMinute }
                         date={ props.date }
                         dayStartsAtMin={ dayStartsAtMin }
                         addNotification={ props.addNotification }
-                        timeboxAddedCallback={ onTimeboxCreateOrUpdate }
-                        modalBoxMaybeRemoveRef={ modalBoxMaybeRemoveRef }
-                        setModalBoxMaybeRemove={ setModalBoxMaybeRemove }
-                        clearDraftTimebox={ clearDraftTimebox } />
+                        handleTimeboxCreateOrUpdate={ handleTimeboxCreateOrUpdate }
+                        clearDraftTimebox={ removeDraftTimebox } />
         </div>
       </div>
     </div>

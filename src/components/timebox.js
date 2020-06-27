@@ -17,19 +17,19 @@ const TimeboxEditModal = React.forwardRef((props, ref) => {
     endInput.current.addEventListener('input', validatesStartBeforeEnd(startInput.current, endInput.current));
   }, []);
 
-  const onCancel = (e) => {
+  const handleCancel = (e) => {
     e.preventDefault();
     props.hideForm();
   };
 
-  const onDelete = async e => {
+  const handleDelete = async e => {
     e.preventDefault();
     const db = await dbPromise;
     await deleteTimebox(db, timebox.id);
-    props.onTimeboxRemove(timebox.id);
+    props.handleTimeboxRemove(timebox.id);
   };
 
-  const onSubmit = async (e) =>{
+  const handleSubmit = async (e) =>{
     e.preventDefault();
 
     const dirtyControls = getDirtyFormControls(e.target);
@@ -52,7 +52,7 @@ const TimeboxEditModal = React.forwardRef((props, ref) => {
     try {
       const timebox = await updateTimebox(db, props.timebox.id, changedValues);
       props.hideForm();
-      props.onTimeboxCreateOrUpdate(timebox);
+      props.handleTimeboxCreateOrUpdate(timebox);
     } catch (e) {
       if (e instanceof ValidationError) {
         flash(ref.current);
@@ -67,7 +67,7 @@ const TimeboxEditModal = React.forwardRef((props, ref) => {
 
   return (
     <div ref={ ref } className='timebox-edit' onClick={ e => e.stopPropagation() }>
-      <form action="" onSubmit={ onSubmit }>
+      <form action="" onSubmit={ handleSubmit }>
         <fieldset>
           <ul>
             <li className="project">
@@ -106,8 +106,8 @@ const TimeboxEditModal = React.forwardRef((props, ref) => {
         </fieldset>
         <fieldset>
           <ul>
-            <li className="delete-timebox"><a href="#" onClick={ onDelete }>Delete</a></li>
-            <li className="cancel"><a href="#" onClick={ onCancel }>Cancel</a></li>
+            <li className="delete-timebox"><a href="#" onClick={ handleDelete }>Delete</a></li>
+            <li className="cancel"><a href="#" onClick={ handleCancel }>Cancel</a></li>
             <li><button type="submit">Save</button></li>
           </ul>
         </fieldset>
@@ -118,28 +118,28 @@ const TimeboxEditModal = React.forwardRef((props, ref) => {
 
 export default function Timebox(props) {
   const [showForm, setShowForm] = useState(false);
-  const editFormElement = useRef();
+  const modalBoxElement = useRef();
 
   const hideForm = () => {
     setShowForm(false);
-    props.setModalBoxMaybeRemove(() => () => true);
+    props.setRequestModalBoxRemoval(() => () => true);
   };
 
-  const openTimeboxEditModal = async (e) => {
+  const handleClick = async (e) => {
     e.stopPropagation();
 
-    if(!props.modalBoxMaybeRemoveRef.current()) { return; }
+    if(!props.requestModalBoxRemovalRef.current()) { return; }
 
     setShowForm(true);
 
-    props.setModalBoxMaybeRemove(() => () => {
-      if (!editFormElement.current) { return true; }
+    props.setRequestModalBoxRemoval(() => () => {
+      if (!modalBoxElement.current) { return true; }
 
-      if (isFormPristine(editFormElement.current)) {
+      if (isFormPristine(modalBoxElement.current)) {
         hideForm();
         return true;
       } else {
-        flash(editFormElement.current);
+        flash(modalBoxElement.current);
         return false;
       }
     });
@@ -152,15 +152,15 @@ export default function Timebox(props) {
   };
 
   return (
-    <article className={ className } style={ style } onClick={ openTimeboxEditModal } >
+    <article className={ className } style={ style } onClick={ handleClick } >
       <h4>{ props.timebox.details }</h4>
       <h5>{ props.timebox.project }</h5>
-      { showForm && <TimeboxEditModal ref={ editFormElement}
+      { showForm && <TimeboxEditModal ref={ modalBoxElement}
                                       timebox={ props.timebox }
                                       hideForm={ hideForm }
                                       addNotification={ props.addNotification }
-                                      onTimeboxCreateOrUpdate={ props.onTimeboxCreateOrUpdate }
-                                      onTimeboxRemove={ props.onTimeboxRemove } /> }
+                                      handleTimeboxCreateOrUpdate={ props.handleTimeboxCreateOrUpdate }
+                                      handleTimeboxRemove={ props.handleTimeboxRemove } /> }
     </article>
   );
 }

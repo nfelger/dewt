@@ -18,10 +18,10 @@ export default function Workhours(props) {
     <React.Fragment>
       <WorkhoursBackdrop workhours={ workhours }
                          dayStartsAtMin={ props.dayStartsAtMin } />
-      <SetWorkhoursLink modalBoxMaybeRemoveRef={ props.modalBoxMaybeRemoveRef }
-                    setModalBoxMaybeRemove={ props.setModalBoxMaybeRemove }
-                    workhours={ workhours }
-                    setWorkhours={ setWorkhours } />
+      <SetWorkhoursLink requestModalBoxRemovalRef={ props.requestModalBoxRemovalRef }
+                        setRequestModalBoxRemoval={ props.setRequestModalBoxRemoval }
+                        workhours={ workhours }
+                        setWorkhours={ setWorkhours } />
     </React.Fragment>
   );
 }
@@ -38,13 +38,13 @@ function SetWorkhoursLink(props) {
   const [showForm, setShowForm] = useState(false);
   const modalBoxElement = useRef();
 
-  const clickHandler = (e) => {
+  const handleClick = (e) => {
     e.stopPropagation();
-    if(!props.modalBoxMaybeRemoveRef.current()) { return; }
+    if(!props.requestModalBoxRemovalRef.current()) { return; }
 
     setShowForm(true);
 
-    props.setModalBoxMaybeRemove(() => () => {
+    props.setRequestModalBoxRemoval(() => () => {
       if (!modalBoxElement.current) { return true; }
 
       if (isFormPristine(modalBoxElement.current)) {
@@ -59,13 +59,13 @@ function SetWorkhoursLink(props) {
 
   const hideForm = () => {
     setShowForm(false);
-    props.setModalBoxMaybeRemove(() => () => true);
+    props.setRequestModalBoxRemoval(() => () => true);
   };
 
   return (
     <React.Fragment>
       <div className="set-work-hours">
-        <a href="#" onClick={clickHandler}>Set work hours</a>
+        <a href="#" onClick={handleClick}>Set work hours</a>
       </div>
       { showForm && <WorkhoursModal ref={ modalBoxElement }
                                     workhours={ props.workhours }
@@ -76,18 +76,18 @@ function SetWorkhoursLink(props) {
 }
 
 const WorkhoursModal = React.forwardRef((props, ref) => {
-  const cancelHandler = (e) => {
+  const handleCancel = (e) => {
     e.preventDefault();
     props.hideForm();
   };
 
-  const escapeHandler = (e) => {
+  const handleEscape = (e) => {
     if (e.key == "Escape") {
       props.hideForm();
     }
   };
 
-  const submitHandler = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     const formData = new FormData(e.target);
@@ -113,9 +113,9 @@ const WorkhoursModal = React.forwardRef((props, ref) => {
   const workhours = props.workhours;
 
   return (
-    <div ref={ ref } className='work-hours-modal' onClick={ (e) => e.stopPropagation() } onKeyDown={ escapeHandler } >
+    <div ref={ ref } className='work-hours-modal' onClick={ (e) => e.stopPropagation() } onKeyDown={ handleEscape } >
       <p>Set your working hours:</p>
-      <form action="" onSubmit={ submitHandler }>
+      <form action="" onSubmit={ handleSubmit }>
         <fieldset>
           <ul>
             <li className="work-start">
@@ -130,7 +130,7 @@ const WorkhoursModal = React.forwardRef((props, ref) => {
         </fieldset>
         <fieldset>
           <ul>
-            <li><a href="#" onClick={ cancelHandler }>Cancel</a></li>
+            <li><a href="#" onClick={ handleCancel }>Cancel</a></li>
             <li><button type="submit">Save</button></li>
           </ul>
         </fieldset>

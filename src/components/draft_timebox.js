@@ -15,7 +15,7 @@ const DraftTimebox = React.forwardRef((props, ref) => {
   }, [props.atMinute]);
 
   const formElement = useRef();
-  const changeHandler = (e) => {
+  const handleChange = (e) => {
     // Wire adding line breaks (from hitting enter but also from copy&paste) to a form submit.
     const endsInNewline = e.currentTarget.value.slice(-1) === '\n';
     e.currentTarget.value = e.currentTarget.value.replace(/\n/g, '');
@@ -25,7 +25,7 @@ const DraftTimebox = React.forwardRef((props, ref) => {
     }
   };
 
-  const submitHandler = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     let project = null;
@@ -48,7 +48,7 @@ const DraftTimebox = React.forwardRef((props, ref) => {
         endMinute: props.atMinute + duration
       });
 
-      props.timeboxAddedCallback(timebox);
+      props.handleTimeboxCreateOrUpdate(timebox);
       props.clearDraftTimebox();
     } catch (e) {
       if (e instanceof ValidationError) {
@@ -62,8 +62,8 @@ const DraftTimebox = React.forwardRef((props, ref) => {
     }
   };
 
-  const escapeHandler = (e) => { if (e.key == "Escape") { props.clearDraftTimebox(); }};
-  const closeBtnHandler = (e) => {
+  const handleEscape = (e) => { if (e.key == "Escape") { props.clearDraftTimebox(); }};
+  const handleCloseBtnClick = (e) => {
     e.stopPropagation();
     props.clearDraftTimebox();
   };
@@ -72,16 +72,16 @@ const DraftTimebox = React.forwardRef((props, ref) => {
     <article ref={ ref }
              className="timebox timebox-draft"
              style={ {'--start-minute': startMinute, '--end-minute': startMinute + duration } }
-             onKeyDown={ escapeHandler }
+             onKeyDown={ handleEscape }
              onClick={ (e) => e.stopPropagation() } >
-      <form ref={ formElement } action="" onSubmit={ submitHandler }>
+      <form ref={ formElement } action="" onSubmit={ handleSubmit }>
         <textarea ref={ detailsTextarea }
                   name="details"
                   placeholder="Work on something deeply"
-                  onChange={ changeHandler } />
+                  onChange={ handleChange } />
         <button type="submit"></button>
       </form>
-      <div className="closeBtn" onClick={ closeBtnHandler }>×</div>
+      <div className="closeBtn" onClick={ handleCloseBtnClick }>×</div>
     </article>
   )
 });
