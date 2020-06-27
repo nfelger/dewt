@@ -11,22 +11,19 @@ export default function AgendaView(props) {
   const dayStartsAtMin = props.dayStartsAtMin;
   const totalMinutes = props.totalMinutes;
 
-  // TODO: fixme - causes rerenders every time the mouse pos updates!
-  const [mouseAtMinute, setMouseAtMinute] = useState(0);
-  const mouseMoveHandler = (e) => {
+  const mouseAtMinute = useRef();
+  const handleMouseMove = (e) => {
     // Use the fact that 1min == 1px.
     const agendaOffset = e.currentTarget.getBoundingClientRect().y;
     const mousePosition = e.clientY;
-    const mouseAtMinute = mousePosition - agendaOffset + dayStartsAtMin;
-
-    setMouseAtMinute(mouseAtMinute);
+    mouseAtMinute.current = mousePosition - agendaOffset + dayStartsAtMin;
   };
 
   const [draftTimeboxAtMinute, setDraftTimeboxAtMinute] = useState(null);
   const clickHandler = () => {
     if(!modalBoxMaybeRemoveRef.current()) { return; }
 
-    setDraftTimeboxAtMinute(mouseAtMinute);
+    setDraftTimeboxAtMinute(mouseAtMinute.current);
   };
 
   const clearDraftTimebox = () => {
@@ -90,7 +87,7 @@ export default function AgendaView(props) {
   return (
     <div className='agenda'
          style={ {'--total-minutes': totalMinutes} }
-         onMouseMove={ mouseMoveHandler }
+         onMouseMove={ handleMouseMove }
          onClick={ clickHandler } >
       <div className="left">
         <Hours dayStartsAtMin={ dayStartsAtMin }
