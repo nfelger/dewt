@@ -24,10 +24,34 @@ export function iso8601date(date) {
   return `${date.getFullYear()}-${zeroPad(date.getMonth() + 1)}-${zeroPad(date.getDate())}`;
 }
 
+export function dateFromISO8601Str(dateStr) {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export function kebabToCamel(name) {
   return name.replace(/-(\w|$)/g, (_, next) => next.toUpperCase())
 }
 
 export function range(start, stop, step) {
   return Array.from({ length: (stop - start) / step + 1 }, (_, i) => start + (i * step));
+}
+
+export function getDirtyFormControls(formElement) {
+  const formControls = Array.from(formElement.querySelectorAll('input, textarea'));
+  const dirtyControls = formControls.filter(c => c.value !== c.defaultValue);
+  return dirtyControls;
+}
+
+export function isFormPristine(formElement) {
+  return getDirtyFormControls(formElement).length === 0;
+}
+
+export function flash(element) {
+  element.classList.add('box-flash');
+  setTimeout(() => {
+    if (element) {  // User may have closed it already.
+      element.classList.remove('box-flash');
+    }
+  }, 800);
 }

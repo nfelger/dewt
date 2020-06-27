@@ -1,8 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { dbPromise } from '../database';
 import { createTimebox, ValidationError } from '../timebox_data';
-import { iso8601date } from '../helpers';
-import { flash } from '../modal_box';
+import { flash } from '../helpers';
 
 const DraftTimebox = React.forwardRef((props, ref) => {
   if (props.atMinute === null) { return null; }
@@ -44,7 +43,7 @@ const DraftTimebox = React.forwardRef((props, ref) => {
         project: project,
         details: details,
         themeColor: 1,
-        date: iso8601date(props.date),
+        date: props.date,
         startMinute: props.atMinute,
         endMinute: props.atMinute + duration
       });

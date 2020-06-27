@@ -1,17 +1,19 @@
 import React from 'react';
-import { range } from "../helpers";
+import { range, dateFromISO8601Str } from "../helpers";
 
 export class DayWidget extends React.Component {
   constructor(props) {
     super(props);
 
+    const date = dateFromISO8601Str(props.date);
+
     const dateFmtOptions = { month: 'short', weekday: 'short' };
     [this.weekday, this.month] = new Intl.DateTimeFormat('en-US', dateFmtOptions)
-      .formatToParts(this.props.date)
+      .formatToParts(date)
       .filter(({ type }) => Object.keys(dateFmtOptions).includes(type))
       .map(({ value }) => value);
 
-    this.dayNum = this.props.date.getDate();
+    this.dayNum = date.getDate();
   }
 
   render() {

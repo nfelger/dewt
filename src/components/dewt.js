@@ -12,7 +12,7 @@ export default function Dewt(props) {
   const removeNotification = (key) => {
     setNotifications(notifications => {
       notifications.delete(key);
-      return { notifications };
+      return notifications;
     });
   };
 

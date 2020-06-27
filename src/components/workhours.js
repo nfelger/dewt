@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { isPristine, flash } from '../modal_box';
-import { timeStrToMinutes, minutesToTimeStr, iso8601date } from '../helpers';
+import { timeStrToMinutes, minutesToTimeStr, isFormPristine, flash } from '../helpers';
 import { dbPromise } from '../database';
 import { loadWorkhours, saveWorkhours } from '../workhours_data';
 import { validatesStartBeforeEnd } from '../form_validations';
@@ -10,7 +9,7 @@ export default function Workhours(props) {
   const [workhours, setWorkhours] = useState({ startMinute: 8 * 60, endMinute: 18 * 60 });
   useEffect(() => {
     dbPromise.then((db) => {
-      loadWorkhours(db, iso8601date(props.date)).then(setWorkhours);
+      loadWorkhours(db, props.date).then(setWorkhours);
     });
   }, [props.date]);
 
@@ -48,7 +47,7 @@ function SetWorkhoursLink(props) {
     props.setModalBoxMaybeRemove(() => () => {
       if (!modalBoxElement.current) { return true; }
 
-      if (isPristine(modalBoxElement.current)) {
+      if (isFormPristine(modalBoxElement.current)) {
         hideForm();
         return true;
       } else {
