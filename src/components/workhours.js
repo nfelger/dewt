@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { timeStrToMinutes, minutesToTimeStr, isFormPristine, flash } from '../helpers';
+import { timeStrToMinutes, minutesToTimeStr, isFormPristine } from '../helpers';
 import { dbPromise } from '../database';
 import { loadWorkhours, saveWorkhours } from '../workhours_data';
 import { validatesStartBeforeEnd } from '../form_validations';
@@ -12,7 +12,6 @@ export default function Workhours(props) {
       loadWorkhours(db, props.date).then(setWorkhours);
     });
   }, [props.date]);
-
 
   return (
     <React.Fragment>
@@ -35,55 +34,68 @@ function WorkhoursBackdrop(props) {
 }
 
 function SetWorkhoursLink(props) {
-  const [showForm, setShowForm] = useState(false);
-  const modalBoxElement = useRef();
+  const [showModal, setShowModal] = useState(false);
 
   const handleClick = (e) => {
     e.stopPropagation();
     if(!props.requestModalBoxRemovalRef.current()) { return; }
 
-    setShowForm(true);
-
-    props.setRequestModalBoxRemoval(() => () => {
-      if (!modalBoxElement.current) { return true; }
-
-      if (isFormPristine(modalBoxElement.current)) {
-        hideForm();
-        return true;
-      } else {
-        flash(modalBoxElement.current);
-        return false;
-      }
-    });
-  };
-
-  const hideForm = () => {
-    setShowForm(false);
-    props.setRequestModalBoxRemoval(() => () => true);
+    setShowModal(true);
   };
 
   return (
     <React.Fragment>
       <div className="set-work-hours">
-        <a href="#" onClick={handleClick}>Set work hours</a>
+        <a href="#" onClick={ handleClick }>Set work hours</a>
       </div>
-      { showForm && <WorkhoursModal ref={ modalBoxElement }
-                                    workhours={ props.workhours }
-                                    setWorkhours={ props.setWorkhours }
-                                    hideForm={ hideForm } /> }
+      { showModal && <WorkhoursModal workhours={ props.workhours }
+                                     setWorkhours={ props.setWorkhours }
+                                     removeModal={ () => setShowModal(false) }
+                                     setRequestModalBoxRemoval={ props.setRequestModalBoxRemoval } /> }
     </React.Fragment>
   )
 }
 
-const WorkhoursModal = React.forwardRef((props, ref) => {
+function WorkhoursModal(props) {
+  const dirtyRef = useRef(false);
+
+  const [flashing, setFlashing] = useState(false);
+
+  useEffect(() => {
+    props.setRequestModalBoxRemoval(() => () => {
+      if (!dirtyRef.current) {
+        props.removeModal();
+        return true;
+      } else {
+        setFlashing(true);
+        return false;
+      }
+    });
+
+    return () => {
+      props.setRequestModalBoxRemoval(() => () => true);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (flashing) {
+      const timeout = setTimeout(() => setFlashing(false), 800);
+      return () => clearTimeout(timeout);
+    }
+  }, [flashing]);
+
+  const handleChange = (e) => {
+    dirtyRef.current = !isFormPristine(e.currentTarget);
+  };
+
   const handleCancel = (e) => {
     e.preventDefault();
-    props.hideForm();
+    props.removeModal();
   };
 
   const handleEscape = (e) => {
     if (e.key == "Escape") {
-      props.hideForm();
+      props.removeModal();
     }
   };
 
@@ -98,7 +110,7 @@ const WorkhoursModal = React.forwardRef((props, ref) => {
     };
     const db = await dbPromise;
     await saveWorkhours(db, workhours);
-    props.hideForm();
+    props.removeModal();
     props.setWorkhours(workhours);
   };
 
@@ -111,11 +123,12 @@ const WorkhoursModal = React.forwardRef((props, ref) => {
   }, []);
 
   const workhours = props.workhours;
+  const className = `work-hours-modal${flashing ? ' box-flash' : ''}`;
 
   return (
-    <div ref={ ref } className='work-hours-modal' onClick={ (e) => e.stopPropagation() } onKeyDown={ handleEscape } >
+    <div className={ className } onClick={ (e) => e.stopPropagation() } onKeyDown={ handleEscape } >
       <p>Set your working hours:</p>
-      <form action="" onSubmit={ handleSubmit }>
+      <form action="" onSubmit={ handleSubmit } onChange={ handleChange }>
         <fieldset>
           <ul>
             <li className="work-start">
@@ -137,4 +150,4 @@ const WorkhoursModal = React.forwardRef((props, ref) => {
       </form>
     </div>
   );
-});
+}

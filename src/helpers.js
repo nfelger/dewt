@@ -46,12 +46,3 @@ export function getDirtyFormControls(formElement) {
 export function isFormPristine(formElement) {
   return getDirtyFormControls(formElement).length === 0;
 }
-
-export function flash(element) {
-  element.classList.add('box-flash');
-  setTimeout(() => {
-    if (element) {  // User may have closed it already.
-      element.classList.remove('box-flash');
-    }
-  }, 800);
-}

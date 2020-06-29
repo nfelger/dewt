@@ -1,10 +1,41 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { minutesToTimeStr, kebabToCamel, getDirtyFormControls,isFormPristine, flash, timeStrToMinutes } from '../helpers';
+import { minutesToTimeStr, kebabToCamel, getDirtyFormControls, isFormPristine, timeStrToMinutes } from '../helpers';
 import { validatesStartBeforeEnd } from '../form_validations';
 import { dbPromise } from '../database';
 import { ValidationError, deleteTimebox, updateTimebox } from '../timebox_data';
 
-const TimeboxEditModal = React.forwardRef((props, ref) => {
+function TimeboxEditModal(props) {
+  const dirtyRef = useRef(false);
+
+  const [flashing, setFlashing] = useState(false);
+
+  useEffect(() => {
+    props.setRequestModalBoxRemoval(() => () => {
+      if (!dirtyRef.current) {
+        props.removeModal();
+        return true;
+      } else {
+        setFlashing(true);
+        return false;
+      }
+    });
+
+    return () => {
+      props.setRequestModalBoxRemoval(() => () => true);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (flashing) {
+      const timeout = setTimeout(() => setFlashing(false), 800);
+      return () => clearTimeout(timeout);
+    }
+  }, [flashing]);
+
+  const handleChange = (e) => {
+    dirtyRef.current = !isFormPristine(e.currentTarget);
+  };
+
   const projectInput = useRef(),
         startInput = useRef(),
         endInput = useRef();
@@ -19,7 +50,7 @@ const TimeboxEditModal = React.forwardRef((props, ref) => {
 
   const handleCancel = (e) => {
     e.preventDefault();
-    props.hideForm();
+    props.removeModal();
   };
 
   const handleDelete = async e => {
@@ -51,11 +82,11 @@ const TimeboxEditModal = React.forwardRef((props, ref) => {
     const db = await dbPromise;
     try {
       const timebox = await updateTimebox(db, props.timebox.id, changedValues);
-      props.hideForm();
+      props.removeModal();
       props.handleTimeboxCreateOrUpdate(timebox);
     } catch (e) {
       if (e instanceof ValidationError) {
-        flash(ref.current);
+        setFlashing(true);
         for (const error of e.errors) {
           props.addNotification(error, 'error');
         }
@@ -65,9 +96,11 @@ const TimeboxEditModal = React.forwardRef((props, ref) => {
     }
   };
 
+  const className = `timebox-edit${flashing ? ' box-flash' : ''}`;
+
   return (
-    <div ref={ ref } className='timebox-edit' onClick={ e => e.stopPropagation() }>
-      <form action="" onSubmit={ handleSubmit }>
+    <div className={ className } onClick={ e => e.stopPropagation() }>
+      <form action="" onSubmit={ handleSubmit } onChange={ handleChange }>
         <fieldset>
           <ul>
             <li className="project">
@@ -114,35 +147,16 @@ const TimeboxEditModal = React.forwardRef((props, ref) => {
       </form>
     </div>
   );
-});
+}
 
 export default function Timebox(props) {
-  const [showForm, setShowForm] = useState(false);
-  const modalBoxElement = useRef();
+  const [showModal, setShowModal] = useState(false);
 
-  const hideForm = () => {
-    setShowForm(false);
-    props.setRequestModalBoxRemoval(() => () => true);
-  };
-
-  const handleClick = async (e) => {
+  const handleClick = (e) => {
     e.stopPropagation();
-
     if(!props.requestModalBoxRemovalRef.current()) { return; }
 
-    setShowForm(true);
-
-    props.setRequestModalBoxRemoval(() => () => {
-      if (!modalBoxElement.current) { return true; }
-
-      if (isFormPristine(modalBoxElement.current)) {
-        hideForm();
-        return true;
-      } else {
-        flash(modalBoxElement.current);
-        return false;
-      }
-    });
+    setShowModal(true);
   };
 
   const className = `timebox theme-color-${props.timebox.themeColor}`;
@@ -155,12 +169,12 @@ export default function Timebox(props) {
     <article className={ className } style={ style } onClick={ handleClick } >
       <h4>{ props.timebox.details }</h4>
       <h5>{ props.timebox.project }</h5>
-      { showForm && <TimeboxEditModal ref={ modalBoxElement}
-                                      timebox={ props.timebox }
-                                      hideForm={ hideForm }
-                                      addNotification={ props.addNotification }
-                                      handleTimeboxCreateOrUpdate={ props.handleTimeboxCreateOrUpdate }
-                                      handleTimeboxRemove={ props.handleTimeboxRemove } /> }
+      { showModal && <TimeboxEditModal timebox={ props.timebox }
+                                       removeModal={ () => setShowModal(false) }
+                                       setRequestModalBoxRemoval={ props.setRequestModalBoxRemoval }
+                                       addNotification={ props.addNotification }
+                                       handleTimeboxCreateOrUpdate={ props.handleTimeboxCreateOrUpdate }
+                                       handleTimeboxRemove={ props.handleTimeboxRemove } /> }
     </article>
   );
 }

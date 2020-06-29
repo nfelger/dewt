@@ -5,7 +5,6 @@ import Timebox from './timebox';
 import DraftTimebox from './draft_timebox';
 import { dbPromise } from '../database';
 import { allTimeboxesOnDate } from '../timebox_data';
-import { isFormPristine, flash } from '../helpers';
 
 export default function AgendaView(props) {
   const dayStartsAtMin = props.dayStartsAtMin;
@@ -32,25 +31,7 @@ export default function AgendaView(props) {
 
   const removeDraftTimebox = () => {
     setDraftTimeboxAtMinute(null);
-    setRequestModalBoxRemoval(() => () => true);
   };
-
-  const draftTimeboxElement = useRef();
-  useEffect(() => {
-    if (!draftTimeboxAtMinute) { return; }
-
-    setRequestModalBoxRemoval(() => () => {
-      if (!draftTimeboxAtMinute) { return true; }
-
-      if (isFormPristine(draftTimeboxElement.current)) {
-        removeDraftTimebox();
-        return true;
-      } else {
-        flash(draftTimeboxElement.current);
-        return false;
-      }
-    });
-  }, [draftTimeboxAtMinute]);
 
   const [timeboxes, setTimeboxes] = useState(new Map());
 
@@ -119,13 +100,14 @@ export default function AgendaView(props) {
                        requestModalBoxRemovalRef={ requestModalBoxRemovalRef }
                        setRequestModalBoxRemoval={ setRequestModalBoxRemoval } />)
           }
-          <DraftTimebox ref={ draftTimeboxElement }
-                        atMinute={ draftTimeboxAtMinute }
-                        date={ props.date }
-                        dayStartsAtMin={ dayStartsAtMin }
-                        addNotification={ props.addNotification }
-                        handleTimeboxCreateOrUpdate={ handleTimeboxCreateOrUpdate }
-                        clearDraftTimebox={ removeDraftTimebox } />
+          { draftTimeboxAtMinute && <DraftTimebox atMinute={ draftTimeboxAtMinute }
+                                                  date={ props.date }
+                                                  dayStartsAtMin={ dayStartsAtMin }
+                                                  addNotification={ props.addNotification }
+                                                  handleTimeboxCreateOrUpdate={ handleTimeboxCreateOrUpdate }
+                                                  removeModal={ removeDraftTimebox }
+                                                  setRequestModalBoxRemoval={ setRequestModalBoxRemoval } />
+          }
         </div>
       </div>
     </div>

@@ -1,28 +1,55 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { dbPromise } from '../database';
 import { createTimebox, ValidationError } from '../timebox_data';
-import { flash } from '../helpers';
+import { isFormPristine } from '../helpers';
 
-const DraftTimebox = React.forwardRef((props, ref) => {
-  if (props.atMinute === null) { return null; }
-
+export default function DraftTimebox(props) {
   const startMinute = props.atMinute - props.dayStartsAtMin;
   const duration = 45;
+
+  const dirtyRef = useRef(false);
+
+  const [flashing, setFlashing] = useState(false);
+
+  useEffect(() => {
+    props.setRequestModalBoxRemoval(() => () => {
+      if (!dirtyRef.current) {
+        props.removeModal();
+        return true;
+      } else {
+        setFlashing(true);
+        return false;
+      }
+    });
+
+    return () => {
+      props.setRequestModalBoxRemoval(() => () => true);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (flashing) {
+      const timeout = setTimeout(() => setFlashing(false), 800);
+      return () => clearTimeout(timeout);
+    }
+  }, [flashing]);
 
   const detailsTextarea = useRef();
   useEffect(() => {
     detailsTextarea.current.focus();
   }, [props.atMinute]);
 
-  const formElement = useRef();
   const handleChange = (e) => {
+    const formElement = e.currentTarget.parentElement;
     // Wire adding line breaks (from hitting enter but also from copy&paste) to a form submit.
     const endsInNewline = e.currentTarget.value.slice(-1) === '\n';
     e.currentTarget.value = e.currentTarget.value.replace(/\n/g, '');
 
     if (e.currentTarget.value !== "" && endsInNewline) {
-      formElement.current.requestSubmit();
+      formElement.requestSubmit();
     }
+
+    dirtyRef.current = !isFormPristine(formElement);
   };
 
   const handleSubmit = async (e) => {
@@ -49,10 +76,10 @@ const DraftTimebox = React.forwardRef((props, ref) => {
       });
 
       props.handleTimeboxCreateOrUpdate(timebox);
-      props.clearDraftTimebox();
+      props.removeModal();
     } catch (e) {
       if (e instanceof ValidationError) {
-        flash(ref.current);
+        setFlashing(true);
         for (const error of e.errors) {
           props.addNotification(error, 'error');
         }
@@ -62,19 +89,20 @@ const DraftTimebox = React.forwardRef((props, ref) => {
     }
   };
 
-  const handleEscape = (e) => { if (e.key == "Escape") { props.clearDraftTimebox(); }};
+  const handleEscape = (e) => { if (e.key == "Escape") { props.removeModal(); }};
   const handleCloseBtnClick = (e) => {
     e.stopPropagation();
-    props.clearDraftTimebox();
+    props.removeModal();
   };
 
+  const className = `timebox timebox-draft${flashing ? ' box-flash' : ''}`;
+
   return (
-    <article ref={ ref }
-             className="timebox timebox-draft"
+    <article className={ className }
              style={ {'--start-minute': startMinute, '--end-minute': startMinute + duration } }
              onKeyDown={ handleEscape }
              onClick={ (e) => e.stopPropagation() } >
-      <form ref={ formElement } action="" onSubmit={ handleSubmit }>
+      <form action="" onSubmit={ handleSubmit }>
         <textarea ref={ detailsTextarea }
                   name="details"
                   placeholder="Work on something deeply"
@@ -84,6 +112,4 @@ const DraftTimebox = React.forwardRef((props, ref) => {
       <div className="closeBtn" onClick={ handleCloseBtnClick }>×</div>
     </article>
   )
-});
-
-export default DraftTimebox;
+}
