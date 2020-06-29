@@ -209,10 +209,6 @@ describe('The day view', () => {
         .contains('Save')
         .click()
 
-      // Edit modal should flash an error.
-      cy.get('.timebox-edit')
-        .should('have.class', 'box-flash')
-
       // Notifications area should have an error message.
       cy.get('.notifications p')
         .should('have.length', 1)

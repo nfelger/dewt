@@ -7,6 +7,27 @@ import { dbPromise } from '../database';
 import { allTimeboxesOnDate } from '../timebox_data';
 
 export default function AgendaView(props) {
+  /* Modals */
+  const [modalIsDirty, setModalIsDirty] = useState(false);
+  const [modalIsFlashing, setModalIsFlashing] = useState(false);
+  const [visibleModal, setVisibleModal] = useState(null);
+
+	const handleModalOpenRequest = (modalIdentifier) => {
+  	if (modalIsDirty) {
+      setModalIsFlashing(true);
+	    return false;
+    } else {
+      setVisibleModal(modalIdentifier);
+      return true;
+    }
+  }
+
+  const handleModalClose = () => {
+    setVisibleModal(null);
+    setModalIsDirty(false);
+  }
+
+  /* Draft Timeboxes */
   const dayStartsAtMin = props.dayStartsAtMin;
   const totalMinutes = props.totalMinutes;
 
@@ -18,21 +39,14 @@ export default function AgendaView(props) {
     mouseAtMinute.current = mousePosition - agendaOffset + dayStartsAtMin;
   };
 
-  const [requestModalBoxRemoval, setRequestModalBoxRemoval] = useState(() => () => true);
-  const requestModalBoxRemovalRef = useRef(null);
-  requestModalBoxRemovalRef.current = requestModalBoxRemoval;
-
   const [draftTimeboxAtMinute, setDraftTimeboxAtMinute] = useState(null);
   const handleClick = () => {
-    if(!requestModalBoxRemovalRef.current()) { return; }
+    if(handleModalOpenRequest('draft-timebox')) {
+      setDraftTimeboxAtMinute(mouseAtMinute.current);
+    }
+  }
 
-    setDraftTimeboxAtMinute(mouseAtMinute.current);
-  };
-
-  const removeDraftTimebox = () => {
-    setDraftTimeboxAtMinute(null);
-  };
-
+  /* Timeboxes */
   const [timeboxes, setTimeboxes] = useState(new Map());
 
   const handleTimeboxCreateOrUpdate = timebox => setTimeboxes(timeboxes => {
@@ -79,8 +93,12 @@ export default function AgendaView(props) {
         <div className="agenda-backdrop">
           <Workhours date={ props.date }
                      dayStartsAtMin={ dayStartsAtMin }
-                     requestModalBoxRemovalRef={ requestModalBoxRemovalRef }
-                     setRequestModalBoxRemoval={ setRequestModalBoxRemoval } />
+                     visibleModal={ visibleModal }
+                     modalIsFlashing={ modalIsFlashing }
+                     onModalFlashingDone={ () => setModalIsFlashing(false) }
+                     onModalOpenRequest={ handleModalOpenRequest }
+                     onModalDirtyChange={ setModalIsDirty }
+                     onModalClose={ handleModalClose } />
           <MajorLines dayStartsAtMin={ dayStartsAtMin }
                       totalMinutes={ totalMinutes } />
           <MinorLines dayStartsAtMin={ dayStartsAtMin }
@@ -95,18 +113,24 @@ export default function AgendaView(props) {
                        timebox={ timebox }
                        dayStartsAtMin={ dayStartsAtMin }
                        addNotification={ props.addNotification }
-                       handleTimeboxCreateOrUpdate={ handleTimeboxCreateOrUpdate } //
-                       handleTimeboxRemove={ handleTimeboxRemove }//
-                       requestModalBoxRemovalRef={ requestModalBoxRemovalRef }
-                       setRequestModalBoxRemoval={ setRequestModalBoxRemoval } />)
+                       onTimeboxCreateOrUpdate={ handleTimeboxCreateOrUpdate }
+                       onTimeboxRemove={ handleTimeboxRemove }
+                       visibleModal={ visibleModal }
+                       modalIsFlashing={ modalIsFlashing }
+                       onModalFlashingDone={ () => setModalIsFlashing(false) }
+                       onModalOpenRequest={ handleModalOpenRequest }
+                       onModalDirtyChange={ setModalIsDirty }
+                       onModalClose={ handleModalClose } />)
           }
-          { draftTimeboxAtMinute && <DraftTimebox atMinute={ draftTimeboxAtMinute }
-                                                  date={ props.date }
-                                                  dayStartsAtMin={ dayStartsAtMin }
-                                                  addNotification={ props.addNotification }
-                                                  handleTimeboxCreateOrUpdate={ handleTimeboxCreateOrUpdate }
-                                                  removeModal={ removeDraftTimebox }
-                                                  setRequestModalBoxRemoval={ setRequestModalBoxRemoval } />
+          { visibleModal === 'draft-timebox' && <DraftTimebox atMinute={ draftTimeboxAtMinute }
+                                                              date={ props.date }
+                                                              dayStartsAtMin={ dayStartsAtMin }
+                                                              addNotification={ props.addNotification }
+                                                              onTimeboxCreateOrUpdate={ handleTimeboxCreateOrUpdate }
+                                                              flashing={ modalIsFlashing }
+                                                              onFlashingDone={ () => setModalIsFlashing(false) }
+                                                              onDirtyChange={ setModalIsDirty }
+                                                              onClose={ handleModalClose } />
           }
         </div>
       </div>

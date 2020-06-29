@@ -1,38 +1,19 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { dbPromise } from '../database';
 import { createTimebox, ValidationError } from '../timebox_data';
-import { isFormPristine } from '../helpers';
 
 export default function DraftTimebox(props) {
   const startMinute = props.atMinute - props.dayStartsAtMin;
   const duration = 45;
 
-  const dirtyRef = useRef(false);
-
-  const [flashing, setFlashing] = useState(false);
-
   useEffect(() => {
-    props.setRequestModalBoxRemoval(() => () => {
-      if (!dirtyRef.current) {
-        props.removeModal();
-        return true;
-      } else {
-        setFlashing(true);
-        return false;
-      }
-    });
-
-    return () => {
-      props.setRequestModalBoxRemoval(() => () => true);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (flashing) {
-      const timeout = setTimeout(() => setFlashing(false), 800);
+    if (props.flashing) {
+      const timeout = setTimeout(() => props.onFlashingDone(), 800);
       return () => clearTimeout(timeout);
     }
-  }, [flashing]);
+  }, [props.flashing]);
+
+  const className = `timebox timebox-draft${props.flashing ? ' box-flash' : ''}`;
 
   const detailsTextarea = useRef();
   useEffect(() => {
@@ -45,11 +26,11 @@ export default function DraftTimebox(props) {
     const endsInNewline = e.currentTarget.value.slice(-1) === '\n';
     e.currentTarget.value = e.currentTarget.value.replace(/\n/g, '');
 
+  	props.onDirtyChange(e.target.value !== e.target.defaultValue);
+
     if (e.currentTarget.value !== "" && endsInNewline) {
       formElement.requestSubmit();
     }
-
-    dirtyRef.current = !isFormPristine(formElement);
   };
 
   const handleSubmit = async (e) => {
@@ -75,11 +56,10 @@ export default function DraftTimebox(props) {
         endMinute: props.atMinute + duration
       });
 
-      props.handleTimeboxCreateOrUpdate(timebox);
-      props.removeModal();
+      props.onTimeboxCreateOrUpdate(timebox);
+      props.onClose();
     } catch (e) {
       if (e instanceof ValidationError) {
-        setFlashing(true);
         for (const error of e.errors) {
           props.addNotification(error, 'error');
         }
@@ -89,13 +69,15 @@ export default function DraftTimebox(props) {
     }
   };
 
-  const handleEscape = (e) => { if (e.key == "Escape") { props.removeModal(); }};
+  const handleEscape = (e) => {
+    if (e.key == "Escape") {
+      props.onClose();
+    }
+  };
   const handleCloseBtnClick = (e) => {
     e.stopPropagation();
-    props.removeModal();
+    props.onClose();
   };
-
-  const className = `timebox timebox-draft${flashing ? ' box-flash' : ''}`;
 
   return (
     <article className={ className }

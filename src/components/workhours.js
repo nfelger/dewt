@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { timeStrToMinutes, minutesToTimeStr, isFormPristine } from '../helpers';
+import { timeStrToMinutes, minutesToTimeStr } from '../helpers';
 import { dbPromise } from '../database';
 import { loadWorkhours, saveWorkhours } from '../workhours_data';
 import { validatesStartBeforeEnd } from '../form_validations';
@@ -17,8 +17,12 @@ export default function Workhours(props) {
     <React.Fragment>
       <WorkhoursBackdrop workhours={ workhours }
                          dayStartsAtMin={ props.dayStartsAtMin } />
-      <SetWorkhoursLink requestModalBoxRemovalRef={ props.requestModalBoxRemovalRef }
-                        setRequestModalBoxRemoval={ props.setRequestModalBoxRemoval }
+      <SetWorkhoursLink visibleModal={ props.visibleModal }
+                        modalIsFlashing={ props.modalIsFlashing }
+                        onModalFlashingDone={ props.onModalFlashingDone }
+                        onModalOpenRequest={ props.onModalOpenRequest }
+                        onModalDirtyChange={ props.onModalDirtyChange }
+                        onModalClose={ props.onModalClose }
                         workhours={ workhours }
                         setWorkhours={ setWorkhours } />
     </React.Fragment>
@@ -34,13 +38,11 @@ function WorkhoursBackdrop(props) {
 }
 
 function SetWorkhoursLink(props) {
-  const [showModal, setShowModal] = useState(false);
+  const modalIdentifier = 'set-work-hours';
 
   const handleClick = (e) => {
     e.stopPropagation();
-    if(!props.requestModalBoxRemovalRef.current()) { return; }
-
-    setShowModal(true);
+    props.onModalOpenRequest(modalIdentifier);
   };
 
   return (
@@ -48,54 +50,38 @@ function SetWorkhoursLink(props) {
       <div className="set-work-hours">
         <a href="#" onClick={ handleClick }>Set work hours</a>
       </div>
-      { showModal && <WorkhoursModal workhours={ props.workhours }
-                                     setWorkhours={ props.setWorkhours }
-                                     removeModal={ () => setShowModal(false) }
-                                     setRequestModalBoxRemoval={ props.setRequestModalBoxRemoval } /> }
+      { props.visibleModal === modalIdentifier && <WorkhoursModal workhours={ props.workhours }
+                                                                  setWorkhours={ props.setWorkhours }
+                                                                  flashing={ props.modalIsFlashing }
+                                                                  onDirtyChange={ props.onModalDirtyChange }
+                                                                  onFlashingDone={ props.onModalFlashingDone }
+                                                                  onClose={ props.onModalClose } /> }
     </React.Fragment>
   )
 }
 
 function WorkhoursModal(props) {
-  const dirtyRef = useRef(false);
-
-  const [flashing, setFlashing] = useState(false);
-
   useEffect(() => {
-    props.setRequestModalBoxRemoval(() => () => {
-      if (!dirtyRef.current) {
-        props.removeModal();
-        return true;
-      } else {
-        setFlashing(true);
-        return false;
-      }
-    });
-
-    return () => {
-      props.setRequestModalBoxRemoval(() => () => true);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (flashing) {
-      const timeout = setTimeout(() => setFlashing(false), 800);
+    if (props.flashing) {
+      const timeout = setTimeout(() => props.onFlashingDone(), 800);
       return () => clearTimeout(timeout);
     }
-  }, [flashing]);
+  }, [props.flashing]);
 
   const handleChange = (e) => {
-    dirtyRef.current = !isFormPristine(e.currentTarget);
+  	props.onDirtyChange(e.target.value !== e.target.defaultValue);
   };
+
+  const className = `work-hours-modal${props.flashing ? ' box-flash' : ''}`;
 
   const handleCancel = (e) => {
     e.preventDefault();
-    props.removeModal();
+    props.onClose();
   };
 
   const handleEscape = (e) => {
     if (e.key == "Escape") {
-      props.removeModal();
+      props.onClose();
     }
   };
 
@@ -110,7 +96,7 @@ function WorkhoursModal(props) {
     };
     const db = await dbPromise;
     await saveWorkhours(db, workhours);
-    props.removeModal();
+    props.onClose();
     props.setWorkhours(workhours);
   };
 
@@ -123,7 +109,6 @@ function WorkhoursModal(props) {
   }, []);
 
   const workhours = props.workhours;
-  const className = `work-hours-modal${flashing ? ' box-flash' : ''}`;
 
   return (
     <div className={ className } onClick={ (e) => e.stopPropagation() } onKeyDown={ handleEscape } >

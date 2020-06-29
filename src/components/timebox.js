@@ -1,40 +1,22 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { minutesToTimeStr, kebabToCamel, getDirtyFormControls, isFormPristine, timeStrToMinutes } from '../helpers';
 import { validatesStartBeforeEnd } from '../form_validations';
 import { dbPromise } from '../database';
 import { ValidationError, deleteTimebox, updateTimebox } from '../timebox_data';
 
 function TimeboxEditModal(props) {
-  const dirtyRef = useRef(false);
-
-  const [flashing, setFlashing] = useState(false);
-
   useEffect(() => {
-    props.setRequestModalBoxRemoval(() => () => {
-      if (!dirtyRef.current) {
-        props.removeModal();
-        return true;
-      } else {
-        setFlashing(true);
-        return false;
-      }
-    });
-
-    return () => {
-      props.setRequestModalBoxRemoval(() => () => true);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (flashing) {
-      const timeout = setTimeout(() => setFlashing(false), 800);
+    if (props.flashing) {
+      const timeout = setTimeout(() => props.onFlashingDone(), 800);
       return () => clearTimeout(timeout);
     }
-  }, [flashing]);
+  }, [props.flashing]);
 
   const handleChange = (e) => {
-    dirtyRef.current = !isFormPristine(e.currentTarget);
+  	props.onDirtyChange(e.target.value !== e.target.defaultValue);
   };
+
+  const className = `timebox-edit${props.flashing ? ' box-flash' : ''}`;
 
   const projectInput = useRef(),
         startInput = useRef(),
@@ -50,14 +32,15 @@ function TimeboxEditModal(props) {
 
   const handleCancel = (e) => {
     e.preventDefault();
-    props.removeModal();
+    props.onClose();
   };
 
   const handleDelete = async e => {
     e.preventDefault();
     const db = await dbPromise;
     await deleteTimebox(db, timebox.id);
-    props.handleTimeboxRemove(timebox.id);
+    props.onClose();
+    props.onTimeboxRemove(timebox.id);
   };
 
   const handleSubmit = async (e) =>{
@@ -82,11 +65,10 @@ function TimeboxEditModal(props) {
     const db = await dbPromise;
     try {
       const timebox = await updateTimebox(db, props.timebox.id, changedValues);
-      props.removeModal();
-      props.handleTimeboxCreateOrUpdate(timebox);
+      props.onClose();
+      props.onTimeboxCreateOrUpdate(timebox);
     } catch (e) {
       if (e instanceof ValidationError) {
-        setFlashing(true);
         for (const error of e.errors) {
           props.addNotification(error, 'error');
         }
@@ -95,8 +77,6 @@ function TimeboxEditModal(props) {
       }
     }
   };
-
-  const className = `timebox-edit${flashing ? ' box-flash' : ''}`;
 
   return (
     <div className={ className } onClick={ e => e.stopPropagation() }>
@@ -150,13 +130,11 @@ function TimeboxEditModal(props) {
 }
 
 export default function Timebox(props) {
-  const [showModal, setShowModal] = useState(false);
+  const modalIdentifier = `edit-timebox-${props.timebox.id}`;
 
   const handleClick = (e) => {
     e.stopPropagation();
-    if(!props.requestModalBoxRemovalRef.current()) { return; }
-
-    setShowModal(true);
+    props.onModalOpenRequest(modalIdentifier);
   };
 
   const className = `timebox theme-color-${props.timebox.themeColor}`;
@@ -169,12 +147,14 @@ export default function Timebox(props) {
     <article className={ className } style={ style } onClick={ handleClick } >
       <h4>{ props.timebox.details }</h4>
       <h5>{ props.timebox.project }</h5>
-      { showModal && <TimeboxEditModal timebox={ props.timebox }
-                                       removeModal={ () => setShowModal(false) }
-                                       setRequestModalBoxRemoval={ props.setRequestModalBoxRemoval }
-                                       addNotification={ props.addNotification }
-                                       handleTimeboxCreateOrUpdate={ props.handleTimeboxCreateOrUpdate }
-                                       handleTimeboxRemove={ props.handleTimeboxRemove } /> }
+      { props.visibleModal === modalIdentifier && <TimeboxEditModal timebox={ props.timebox }
+                                                                    flashing={ props.modalIsFlashing }
+                                                                    onDirtyChange={ props.onModalDirtyChange }
+                                                                    onFlashingDone={ props.onModalFlashingDone }
+                                                                    onClose={ props.onModalClose }
+                                                                    addNotification={ props.addNotification }
+                                                                    onTimeboxCreateOrUpdate={ props.onTimeboxCreateOrUpdate }
+                                                                    onTimeboxRemove={ props.onTimeboxRemove } /> }
     </article>
   );
 }
